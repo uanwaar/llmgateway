@@ -77,7 +77,7 @@ Based on the PRD, the system will implement these key architectural components:
 - o4-mini-deep-research → `o4-mini-deep-research`
 - o1-preview → `o1-preview`
 - o1-mini → `o1-mini`
-- Whisper → `whisper`
+- Whisper → `whisper-1`
 
 #### Google Gemini Models
 - Gemini 2.5 Pro → `gemini-2.5-pro`

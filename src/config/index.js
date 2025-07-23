@@ -22,13 +22,13 @@ const configSchema = Joi.object({
     host: Joi.string().default('0.0.0.0'),
     timeout: Joi.number().positive().default(30000),
     corsEnabled: Joi.boolean().default(true),
-    rateLimitingEnabled: Joi.boolean().default(true)
+    rateLimitingEnabled: Joi.boolean().default(true),
   }).required(),
   
   auth: Joi.object({
     mode: Joi.string().valid('gateway', 'client', 'hybrid').default('hybrid'),
     allowClientKeys: Joi.boolean().default(true),
-    requireAuthHeader: Joi.boolean().default(false)
+    requireAuthHeader: Joi.boolean().default(false),
   }).required(),
   
   providers: Joi.object({
@@ -36,26 +36,26 @@ const configSchema = Joi.object({
       enabled: Joi.boolean().default(true),
       baseUrl: Joi.string().uri().required(),
       timeout: Joi.number().positive().default(30000),
-      retryCount: Joi.number().min(0).default(3)
+      retryCount: Joi.number().min(0).default(3),
     }),
     gemini: Joi.object({
       enabled: Joi.boolean().default(true),
       baseUrl: Joi.string().uri().required(),
       timeout: Joi.number().positive().default(30000),
-      retryCount: Joi.number().min(0).default(3)
-    })
+      retryCount: Joi.number().min(0).default(3),
+    }),
   }).required(),
   
   cache: Joi.object({
     enabled: Joi.boolean().default(true),
     backend: Joi.string().valid('memory', 'redis').default('memory'),
-    ttl: Joi.number().positive().default(3600)
+    ttl: Joi.number().positive().default(3600),
   }).required(),
   
   logging: Joi.object({
     level: Joi.string().valid('error', 'warn', 'info', 'debug').default('info'),
-    format: Joi.string().valid('json', 'text').default('json')
-  }).required()
+    format: Joi.string().valid('json', 'text').default('json'),
+  }).required(),
 });
 
 class ConfigManager {
@@ -181,7 +181,7 @@ class ConfigManager {
 
     const { error, value } = configSchema.validate(this.config, {
       allowUnknown: true,
-      abortEarly: false
+      abortEarly: false,
     });
 
     if (error) {

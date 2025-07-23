@@ -29,7 +29,7 @@ async function initialize() {
     logger.info('Starting LLM Gateway', {
       version: process.env.npm_package_version,
       nodeVersion: process.version,
-      environment: process.env.NODE_ENV || 'development'
+      environment: process.env.NODE_ENV || 'development',
     });
 
     // Start the server

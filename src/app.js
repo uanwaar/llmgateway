@@ -33,15 +33,15 @@ function createApp() {
       origin: config.server.corsOrigins || '*',
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
-      credentials: true
+      credentials: true,
     }));
   }
 
   // Request logging
   app.use(morgan('combined', {
     stream: {
-      write: (message) => logger.info(message.trim())
-    }
+      write: (message) => logger.info(message.trim()),
+    },
   }));
 
   // Body parsing middleware
@@ -76,7 +76,7 @@ function createApp() {
     res.status(404).json({
       error: 'Not Found',
       message: 'The requested endpoint does not exist',
-      path: req.path
+      path: req.path,
     });
   });
 

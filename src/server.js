@@ -29,7 +29,7 @@ async function start(app) {
     if (config.server.ssl && config.server.ssl.enabled) {
       const sslOptions = {
         key: fs.readFileSync(config.server.ssl.keyPath),
-        cert: fs.readFileSync(config.server.ssl.certPath)
+        cert: fs.readFileSync(config.server.ssl.certPath),
       };
       server = https.createServer(sslOptions, app);
       logger.info('Created HTTPS server');
@@ -58,7 +58,7 @@ async function start(app) {
       logger.info(`Server listening on ${host}:${port}`, {
         port,
         host,
-        ssl: config.server.ssl?.enabled || false
+        ssl: config.server.ssl?.enabled || false,
       });
       resolve();
     });
@@ -124,12 +124,12 @@ function getStatus() {
   return {
     running: server !== null,
     listening: server?.listening || false,
-    address: server?.address() || null
+    address: server?.address() || null,
   };
 }
 
 module.exports = {
   start,
   stop,
-  getStatus
+  getStatus,
 };

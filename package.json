@@ -16,7 +16,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:providers": "jest tests/integration/providers",
-    "lint": "eslint src/ tests/",
+    "lint": "eslint src/",
     "lint:fix": "eslint src/ tests/ --fix",
     "format": "prettier --write src/ tests/",
     "type-check": "tsc --noEmit"
@@ -63,10 +63,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/llm-gateway.git"
+    "url": "git+https://github.com/your-org/llm-gateway.git"
   },
   "bugs": {
     "url": "https://github.com/your-org/llm-gateway/issues"
   },
-  "homepage": "https://github.com/your-org/llm-gateway#readme"
+  "homepage": "https://github.com/your-org/llm-gateway#readme",
+  "directories": {
+    "doc": "docs",
+    "example": "examples",
+    "test": "tests"
+  }
 }

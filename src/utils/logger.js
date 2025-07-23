@@ -23,7 +23,7 @@ function createLogger() {
     json: winston.format.combine(
       winston.format.timestamp(),
       winston.format.errors({ stack: true }),
-      winston.format.json()
+      winston.format.json(),
     ),
     text: winston.format.combine(
       winston.format.timestamp(),
@@ -31,16 +31,16 @@ function createLogger() {
       winston.format.printf(({ timestamp, level, message, ...meta }) => {
         const metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
         return `${timestamp} [${level}]: ${message} ${metaStr}`;
-      })
-    )
+      }),
+    ),
   };
 
   // Create transports
   const transports = [
     new winston.transports.Console({
       level: logLevel,
-      format: formats[logFormat] || formats.json
-    })
+      format: formats[logFormat] || formats.json,
+    }),
   ];
 
   // Add file transports in production
@@ -49,12 +49,12 @@ function createLogger() {
       new winston.transports.File({
         filename: 'logs/error.log',
         level: 'error',
-        format: formats.json
+        format: formats.json,
       }),
       new winston.transports.File({
         filename: 'logs/app.log',
-        format: formats.json
-      })
+        format: formats.json,
+      }),
     );
   }
 
@@ -62,7 +62,7 @@ function createLogger() {
     level: logLevel,
     format: formats[logFormat] || formats.json,
     transports,
-    exitOnError: false
+    exitOnError: false,
   });
 }
 
@@ -85,7 +85,7 @@ class EnhancedLogger {
       error: (message, meta = {}) => this.logger.error(message, { ...context, ...meta }),
       warn: (message, meta = {}) => this.logger.warn(message, { ...context, ...meta }),
       info: (message, meta = {}) => this.logger.info(message, { ...context, ...meta }),
-      debug: (message, meta = {}) => this.logger.debug(message, { ...context, ...meta })
+      debug: (message, meta = {}) => this.logger.debug(message, { ...context, ...meta }),
     };
   }
 
@@ -99,7 +99,7 @@ class EnhancedLogger {
       url: req.url,
       userAgent: req.get('User-Agent'),
       ip: req.ip,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     this.logger.info('Request started', context);
@@ -117,7 +117,7 @@ class EnhancedLogger {
       url: req.url,
       statusCode: res.statusCode,
       duration,
-      contentLength: res.get('Content-Length') || 0
+      contentLength: res.get('Content-Length') || 0,
     };
 
     const level = res.statusCode >= 400 ? 'warn' : 'info';
@@ -132,7 +132,7 @@ class EnhancedLogger {
       provider,
       action,
       ...data,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -144,7 +144,7 @@ class EnhancedLogger {
       operation,
       duration,
       ...metadata,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -157,7 +157,7 @@ class EnhancedLogger {
       key,
       hit,
       ttl,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -168,7 +168,7 @@ class EnhancedLogger {
     this.logger.info('Authentication event', {
       event,
       ...details,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -180,7 +180,7 @@ class EnhancedLogger {
       ip,
       remaining,
       total,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 

@@ -43,25 +43,35 @@ POST /v1/responses
 ```json
 {
   "model": "gpt-4o",
-  "input": "What is the weather like today in New York?",
+  "messages": [
+    {
+      "role": "user",
+      "content": "What is the weather like today in New York?"
+    }
+  ],
   "stream": false
 }
 ```
 
-#### Advanced Request with Tools
+#### Advanced Request with Tools and Streaming
 ```json
 {
-  "model": "o3",
-  "input": [
+  "model": "gpt-4o",
+  "messages": [
     {
-      "type": "text",
-      "text": "Analyze this data and create a visualization"
-    },
-    {
-      "type": "image_url",
-      "image_url": {
-        "url": "https://example.com/data-chart.png"
-      }
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Analyze this data and create a visualization"
+        },
+        {
+          "type": "image_url",
+          "image_url": {
+            "url": "https://example.com/data-chart.png"
+          }
+        }
+      ]
     }
   ],
   "tools": [
@@ -72,17 +82,25 @@ POST /v1/responses
       "type": "code_interpreter"
     }
   ],
-  "background": false,
   "stream": true,
-  "max_output_tokens": 4096
+  "stream_options": {
+    "include_usage": true
+  },
+  "max_completion_tokens": 4096,
+  "temperature": 0.7
 }
 ```
 
 #### Background Processing Request
 ```json
 {
-  "model": "o3",
-  "input": "Perform a comprehensive analysis of this 100-page document",
+  "model": "gpt-4o",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Perform a comprehensive analysis of this 100-page document"
+    }
+  ],
   "tools": [
     {
       "type": "file_search",
@@ -92,8 +110,7 @@ POST /v1/responses
     }
   ],
   "background": true,
-  "store": true,
-  "max_output_tokens": 16384
+  "max_completion_tokens": 16384
 }
 ```
 
@@ -101,21 +118,60 @@ POST /v1/responses
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `model` | string | Yes | Model ID (e.g., "gpt-4o", "gpt-4.1", "o3", "o4-mini") |
-| `input` | string or array | Yes | Input text or multimodal content array |
-| `tools` | array | No | Array of tools to enable |
+| `model` | string | Yes | Model ID (e.g., "gpt-4o", "gpt-4o-mini", "o1", "o1-mini") |
+| `messages` | array | Yes | List of messages comprising the conversation |
+| `tools` | array | No | Array of tools the model may call |
+| `tool_choice` | string/object | No | Controls which tools are called ("none", "auto", "required", or specific tool) |
 | `stream` | boolean | No | Enable streaming responses (default: false) |
-| `background` | boolean | No | Enable background processing (default: false) |
-| `store` | boolean | No | Required when background=true |
-| `max_output_tokens` | integer | No | Maximum tokens in response (default: 4096) |
+| `stream_options` | object | No | Options for streaming response (only when stream=true) |
+| `background` | boolean | No | Run the response in the background (default: false) |
+| `max_completion_tokens` | integer | No | Maximum tokens in response completion |
 | `temperature` | number | No | Sampling temperature 0-2 (default: 1) |
 | `top_p` | number | No | Nucleus sampling parameter (default: 1) |
+| `frequency_penalty` | number | No | Penalty for frequency of tokens (-2.0 to 2.0) |
+| `presence_penalty` | number | No | Penalty for presence of tokens (-2.0 to 2.0) |
 
-### Available Models
-- **gpt-4o**: Latest GPT-4 Omni model
-- **gpt-4.1**: Enhanced GPT-4 variant
-- **o3**: Advanced reasoning model with chain-of-thought
-- **o4-mini**: Efficient reasoning model for cost optimization
+### Available Models for Responses API
+
+#### Latest Models (2025)
+- **gpt-4.1** (gpt-4.1-2025-04-14): Next-generation GPT-4 with enhanced capabilities
+- **gpt-4.1-mini** (gpt-4.1-mini-2025-04-14): Efficient version of GPT-4.1
+- **gpt-4.1-nano**: Newest ultra-efficient model
+
+#### Core Models
+- **gpt-4o** (gpt-4o-2024-08-06): Latest GPT-4 Omni model with multimodal capabilities
+- **gpt-4o-audio-preview** (gpt-4o-audio-preview-2025-06-03): GPT-4o with audio processing
+- **gpt-4o-realtime-preview** (gpt-4o-realtime-preview-2025-06-03): Real-time conversation model
+- **gpt-4o-mini** (gpt-4o-mini-2024-07-18): Efficient GPT-4 Omni model for cost optimization
+- **gpt-4o-mini-audio-preview** (gpt-4o-mini-audio-preview-2024-12-17): Mini version with audio
+- **gpt-4o-mini-realtime-preview** (gpt-4o-mini-realtime-preview-2024-12-17): Mini real-time model
+
+#### Reasoning Models
+- **o3-mini** (o3-mini-2025-01-31): Advanced reasoning model with enhanced chain-of-thought
+
+#### Premium Models
+- **chatgpt-4o-latest**: ChatGPT-optimized version of GPT-4o
+- **gpt-4-turbo** (gpt-4-turbo-2024-04-09): High-performance GPT-4 variant
+- **gpt-4** (gpt-4-0613): Original GPT-4 model
+- **gpt-4-32k**: GPT-4 with extended 32k context window
+
+#### Legacy Models
+- **gpt-3.5-turbo** (gpt-3.5-turbo-0125): Fast and efficient for simpler tasks
+- **gpt-3.5-turbo-instruct**: Instruction-following variant of GPT-3.5
+
+#### Model Capabilities Summary
+
+| Model | Context Window | Multimodal | Audio | Reasoning | Use Case |
+|-------|---------------|------------|-------|-----------|----------|
+| gpt-4.1 | 128k | ✅ | ❌ | ✅ | Latest general-purpose |
+| gpt-4.1-mini | 128k | ✅ | ❌ | ✅ | Cost-efficient latest |
+| gpt-4o | 128k | ✅ | ❌ | ✅ | Multimodal tasks |
+| gpt-4o-audio-preview | 128k | ✅ | ✅ | ✅ | Audio processing |
+| gpt-4o-realtime-preview | 128k | ✅ | ✅ | ✅ | Real-time conversations |
+| gpt-4o-mini | 128k | ✅ | ❌ | ✅ | Budget multimodal |
+| o3-mini | 128k | ❌ | ❌ | ✅✅ | Complex reasoning |
+| gpt-4-turbo | 128k | ✅ | ❌ | ✅ | High performance |
+| gpt-3.5-turbo | 16k | ❌ | ❌ | ✅ | Simple tasks |
 
 ### Built-in Tools
 
@@ -231,9 +287,15 @@ GET /v1/responses/{response_id}
           {
             "id": "call_12345",
             "type": "web_search_preview",
-            "results": {
+            "web_search_preview": {
               "query": "New York weather today",
-              "sources": ["weather.com", "accuweather.com"]
+              "results": [
+                {
+                  "title": "Current Weather in New York",
+                  "url": "https://weather.com/weather/today/l/New+York+NY",
+                  "snippet": "Current conditions and forecast"
+                }
+              ]
             }
           }
         ]
@@ -244,9 +306,30 @@ GET /v1/responses/{response_id}
   "usage": {
     "prompt_tokens": 25,
     "completion_tokens": 150,
-    "total_tokens": 175,
-    "reasoning_tokens": 500
+    "total_tokens": 175
   }
+}
+```
+
+---
+
+## 3. Cancel Response
+
+### Endpoint
+```http
+POST /v1/responses/{response_id}/cancel
+```
+
+### Purpose
+Cancels a Response that is currently in progress. Useful for stopping long-running background responses or streaming responses that are no longer needed.
+
+### Response Format
+```json
+{
+  "id": "resp_12345",
+  "object": "response",
+  "status": "cancelled",
+  "cancelled_at": 1704067200
 }
 ```
 
@@ -264,7 +347,7 @@ https://api.openai.com/v1/audio
 
 ---
 
-## 3. Speech-to-Text (Transcriptions)
+## 4. Speech-to-Text (Transcriptions)
 
 ### Endpoint
 ```http
@@ -272,14 +355,46 @@ POST /v1/audio/transcriptions
 ```
 
 ### Request Format
+
+#### Basic Transcription
 ```json
 {
   "file": "audio_file.mp3",
   "model": "whisper-1",
   "language": "en",
   "response_format": "json",
+  "temperature": 0
+}
+```
+
+#### Advanced Transcription with New Models
+```json
+{
+  "file": "audio_file.mp3",
+  "model": "gpt-4o-transcribe",
+  "language": "en",
+  "response_format": "json",
   "temperature": 0,
+  "stream": true,
+  "chunking_strategy": "auto",
+  "include": ["logprobs"],
   "timestamp_granularities": ["word", "segment"]
+}
+```
+
+#### Server VAD Chunking Strategy
+```json
+{
+  "file": "audio_file.mp3",
+  "model": "gpt-4o-mini-transcribe",
+  "chunking_strategy": {
+    "type": "server_vad",
+    "server_vad": {
+      "threshold": 0.5,
+      "prefix_padding_ms": 300,
+      "silence_timeout_ms": 500
+    }
+  }
 }
 ```
 
@@ -299,16 +414,41 @@ curl -X POST "https://api.openai.com/v1/audio/transcriptions" \
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `file` | file | Yes | Audio file (max 25MB) |
-| `model` | string | Yes | Model ID ("whisper-1", "gpt-4o-transcribe") |
-| `language` | string | No | ISO 639-1 language code |
-| `prompt` | string | No | Optional text to guide style/continue previous audio |
-| `response_format` | string | No | Format: "json", "text", "srt", "verbose_json", "vtt" |
+| `file` | file | Yes | Audio file (max 25MB). Formats: flac, mp3, mp4, mpeg, mpga, m4a, ogg, wav, webm |
+| `model` | string | Yes | Available models: "whisper-1", "gpt-4o-transcribe", "gpt-4o-mini-transcribe" |
+| `language` | string | No | ISO 639-1 language code for input audio |
+| `prompt` | string | No | Optional text to guide model's style or continue previous audio segment |
+| `response_format` | string | No | "json", "text", "srt", "verbose_json", "vtt" (gpt-4o models only support "json") |
 | `temperature` | number | No | Sampling temperature 0-1 (default: 0) |
-| `timestamp_granularities` | array | No | ["word", "segment"] for detailed timestamps |
+| `timestamp_granularities` | array | No | ["word", "segment"] - requires verbose_json format |
+| `stream` | boolean | No | Enable streaming (only for gpt-4o-transcribe/gpt-4o-mini-transcribe) |
+| `chunking_strategy` | string/object | No | "auto" or custom server_vad object for audio chunking |
+| `include` | array | No | ["logprobs"] for confidence scores (gpt-4o models only) |
 
 ### Supported File Formats
-- mp3, mp4, mpeg, mpga, m4a, wav, webm, flac
+- **Audio**: flac, mp3, mp4, mpeg, mpga, m4a, ogg, wav, webm
+- **Size Limit**: 25MB maximum
+- **Duration**: No explicit limit, but longer files may have higher latency
+
+### Model Capabilities
+
+#### whisper-1
+- Based on open source Whisper V2
+- Supports all response formats
+- No streaming support
+- No logprobs support
+
+#### gpt-4o-transcribe
+- Enhanced transcription accuracy
+- Streaming support with server-sent events
+- Logprobs support for confidence scoring
+- Only supports JSON response format
+- Advanced chunking strategies
+
+#### gpt-4o-mini-transcribe
+- Cost-optimized version of gpt-4o-transcribe
+- Same features as gpt-4o-transcribe
+- Faster processing for shorter audio files
 
 ### Response Formats
 
@@ -355,9 +495,41 @@ curl -X POST "https://api.openai.com/v1/audio/transcriptions" \
 }
 ```
 
+#### JSON Response with Logprobs (gpt-4o models)
+```json
+{
+  "text": "Hello, this is a transcribed audio file.",
+  "logprobs": [
+    {
+      "token": "Hello",
+      "logprob": -0.1,
+      "start": 0.1,
+      "end": 0.5
+    },
+    {
+      "token": ",",
+      "logprob": -0.05,
+      "start": 0.5,
+      "end": 0.6
+    }
+  ]
+}
+```
+
+#### Streaming Response Format
+```
+data: {"text": "Hello", "x_start": 0.1, "x_end": 0.5}
+
+data: {"text": ", this is a", "x_start": 0.5, "x_end": 1.2}
+
+data: {"text": " transcribed audio file.", "x_start": 1.2, "x_end": 2.8}
+
+data: [DONE]
+```
+
 ---
 
-## 4. Speech Translation
+## 5. Speech Translation
 
 ### Endpoint
 ```http
@@ -378,8 +550,8 @@ POST /v1/audio/translations
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `file` | file | Yes | Audio file in any supported language |
-| `model` | string | Yes | Model ID ("whisper-1") |
+| `file` | file | Yes | Audio file in any supported language (max 25MB) |
+| `model` | string | Yes | Currently only "whisper-1" available |
 | `prompt` | string | No | Optional text to guide translation style |
 | `response_format` | string | No | Format: "json", "text", "srt", "verbose_json", "vtt" |
 | `temperature` | number | No | Sampling temperature 0-1 (default: 0) |
@@ -391,9 +563,11 @@ POST /v1/audio/translations
 }
 ```
 
+**Note**: Translation automatically converts any supported language to English. No streaming support currently available.
+
 ---
 
-## 5. Text-to-Speech
+## 6. Text-to-Speech
 
 ### Endpoint
 ```http
@@ -401,6 +575,8 @@ POST /v1/audio/speech
 ```
 
 ### Request Format
+
+#### Basic TTS Request
 ```json
 {
   "model": "tts-1",
@@ -411,32 +587,85 @@ POST /v1/audio/speech
 }
 ```
 
+#### Advanced TTS with Voice Instructions
+```json
+{
+  "model": "gpt-4o-mini-tts",
+  "input": "Hello, how can I help you today?",
+  "voice": "nova",
+  "instructions": "Speak like a friendly and professional customer service representative with a warm, welcoming tone",
+  "response_format": "mp3",
+  "speed": 1.0
+}
+```
+
+#### Streaming TTS Request
+```json
+{
+  "model": "gpt-4o-mini-tts",
+  "input": "This is a streaming text-to-speech example that will be delivered in real-time chunks.",
+  "voice": "alloy",
+  "stream_format": "sse",
+  "response_format": "mp3"
+}
+```
+
 ### Request Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `model` | string | Yes | "tts-1", "tts-1-hd", "gpt-4o-mini-tts" |
 | `input` | string | Yes | Text to convert to audio (max 4096 characters) |
-| `voice` | string | Yes | Voice ID: "alloy", "echo", "fable", "onyx", "nova", "shimmer" |
-| `response_format` | string | No | Format: "mp3", "opus", "aac", "flac", "wav", "pcm" |
+| `voice` | string | Yes | Available voices (see Voice Options below) |
+| `instructions` | string | No | Voice control instructions (gpt-4o-mini-tts only) |
+| `response_format` | string | No | "mp3", "opus", "aac", "flac", "wav", "pcm" (default: mp3) |
 | `speed` | number | No | Playback speed 0.25-4.0 (default: 1.0) |
+| `stream_format` | string | No | "sse" for server-sent events, "audio" for direct stream |
 
-### Advanced TTS with Instructions (2025)
-```json
-{
-  "model": "gpt-4o-mini-tts",
-  "input": "Hello, how can I help you today?",
-  "voice": "nova",
-  "instructions": "Speak like a friendly and professional customer service representative",
-  "response_format": "mp3",
-  "speed": 1.0
-}
-```
+### Voice Options
+**Standard Voices**: `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer`
+**Extended Voices**: `ash`, `ballad`, `coral`, `sage`, `verse`
 
-### Response
+### Model Capabilities
+
+#### tts-1
+- Standard quality text-to-speech
+- All voice options supported
+- No streaming support
+- No voice instructions
+
+#### tts-1-hd
+- High-definition audio quality
+- All voice options supported
+- No streaming support
+- No voice instructions
+
+#### gpt-4o-mini-tts
+- Advanced voice synthesis
+- Voice instruction support
+- Server-sent events streaming
+- Enhanced voice control and expressiveness
+
+### Response Formats
+
+#### Standard Response
 Returns binary audio data in the specified format.
 
-### cURL Example
+#### Streaming Response (SSE Format)
+```
+event: audio.delta
+data: {"delta": "<base64_audio_chunk>"}
+
+event: audio.delta
+data: {"delta": "<base64_audio_chunk>"}
+
+event: audio.done
+data: {"done": true}
+```
+
+### cURL Examples
+
+#### Basic TTS
 ```bash
 curl -X POST "https://api.openai.com/v1/audio/speech" \
   -H "Authorization: Bearer YOUR_API_KEY" \
@@ -448,6 +677,269 @@ curl -X POST "https://api.openai.com/v1/audio/speech" \
   }' \
   --output speech.mp3
 ```
+
+#### Advanced TTS with Instructions
+```bash
+curl -X POST "https://api.openai.com/v1/audio/speech" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4o-mini-tts",
+    "input": "Welcome to our service!",
+    "voice": "nova",
+    "instructions": "Sound enthusiastic and welcoming"
+  }' \
+  --output speech.mp3
+```
+
+#### Streaming TTS
+```bash
+curl -X POST "https://api.openai.com/v1/audio/speech" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4o-mini-tts",
+    "input": "This will stream in real-time",
+    "voice": "alloy",
+    "stream_format": "sse"
+  }'
+```
+
+---
+
+## Streaming Implementation Guide
+
+### Overview
+OpenAI APIs support comprehensive streaming capabilities using Server-Sent Events (SSE) format, enabling real-time processing for responses, audio transcription, and text-to-speech.
+
+---
+
+## 7. Responses API Streaming
+
+### Enabling Streaming
+```json
+{
+  "model": "gpt-4o",
+  "messages": [{"role": "user", "content": "Tell me a story"}],
+  "stream": true,
+  "stream_options": {
+    "include_usage": true
+  }
+}
+```
+
+### Stream Event Types
+
+#### Core Response Events
+- `response.created`: Response object created
+- `response.in_progress`: Response generation started
+- `response.completed`: Response finished successfully
+- `response.failed`: Response failed with error
+- `response.incomplete`: Response stopped before completion
+
+#### Content Events
+- `response.output_item.added`: New output item added
+- `response.content_part.added`: Content part added to output
+- `response.output_text.delta`: Text content delta
+- `response.output_text.done`: Text output completed
+
+#### Tool Call Events
+- `response.function_call_arguments.delta`: Function call arguments streaming
+- `response.function_call_arguments.done`: Function call arguments complete
+- `response.web_search_call.added`: Web search initiated
+- `response.code_interpreter_call.added`: Code interpreter execution started
+- `response.file_search_call.added`: File search operation started
+- `response.image_generation_call.added`: Image generation started
+
+#### Advanced Events
+- `response.reasoning_summary_part.added`: Reasoning summary part added
+- `response.reasoning_summary_text.delta`: Reasoning summary text delta
+- `response.mcp_call_arguments.delta`: MCP tool arguments streaming
+- `response.mcp_list_tools.added`: MCP tools list operation
+
+### Example Streaming Response
+```
+event: response.created
+data: {"id":"resp_12345","object":"response","status":"in_progress","created":1704067200}
+
+event: response.output_item.added
+data: {"response_id":"resp_12345","output_index":0,"item":{"id":"item_1","type":"message"}}
+
+event: response.content_part.added
+data: {"response_id":"resp_12345","item_id":"item_1","part":{"type":"text"}}
+
+event: response.output_text.delta
+data: {"response_id":"resp_12345","item_id":"item_1","part_index":0,"delta":"Once upon"}
+
+event: response.output_text.delta
+data: {"response_id":"resp_12345","item_id":"item_1","part_index":0,"delta":" a time"}
+
+event: response.output_text.done
+data: {"response_id":"resp_12345","item_id":"item_1","part_index":0}
+
+event: response.completed
+data: {"response_id":"resp_12345","usage":{"prompt_tokens":10,"completion_tokens":25,"total_tokens":35}}
+```
+
+---
+
+## 8. Audio Transcription Streaming
+
+### Supported Models
+- ✅ `gpt-4o-transcribe` - Full streaming support
+- ✅ `gpt-4o-mini-transcribe` - Full streaming support
+- ❌ `whisper-1` - No streaming support
+
+### Streaming Request
+```json
+{
+  "file": "audio_file.mp3",
+  "model": "gpt-4o-transcribe",
+  "stream": true,
+  "chunking_strategy": "auto"
+}
+```
+
+### Streaming Response Format
+```
+data: {"text": "Hello", "x_start": 0.1, "x_end": 0.5}
+
+data: {"text": ", welcome to", "x_start": 0.5, "x_end": 1.2}
+
+data: {"text": " our service", "x_start": 1.2, "x_end": 2.0}
+
+data: [DONE]
+```
+
+### Chunking Strategies for Streaming
+
+#### Auto Chunking
+```json
+{"chunking_strategy": "auto"}
+```
+- Server automatically normalizes audio loudness
+- Uses Voice Activity Detection (VAD) for optimal chunk boundaries
+- Recommended for most use cases
+
+#### Server VAD Chunking
+```json
+{
+  "chunking_strategy": {
+    "type": "server_vad",
+    "server_vad": {
+      "threshold": 0.5,
+      "prefix_padding_ms": 300,
+      "silence_timeout_ms": 500
+    }
+  }
+}
+```
+
+---
+
+## 9. Text-to-Speech Streaming
+
+### Supported Models
+- ✅ `gpt-4o-mini-tts` - Server-sent events streaming
+- ❌ `tts-1` - No streaming support
+- ❌ `tts-1-hd` - No streaming support
+
+### Streaming Request
+```json
+{
+  "model": "gpt-4o-mini-tts",
+  "input": "This text will be converted to streaming audio",
+  "voice": "alloy",
+  "stream_format": "sse"
+}
+```
+
+### Stream Format Options
+- `"sse"`: Server-sent events with base64 encoded audio chunks
+- `"audio"`: Direct audio streaming (binary data)
+
+### SSE Streaming Response
+```
+event: audio.delta
+data: {"delta": "<base64_encoded_audio_chunk>"}
+
+event: audio.delta
+data: {"delta": "<base64_encoded_audio_chunk>"}
+
+event: audio.done
+data: {"done": true}
+```
+
+---
+
+## 10. Client Implementation Best Practices
+
+### JavaScript/TypeScript Example
+```javascript
+const eventSource = new EventSource('/api/stream-endpoint');
+
+eventSource.addEventListener('response.output_text.delta', (event) => {
+  const data = JSON.parse(event.data);
+  appendToUI(data.delta);
+});
+
+eventSource.addEventListener('response.completed', (event) => {
+  const data = JSON.parse(event.data);
+  console.log('Usage:', data.usage);
+  eventSource.close();
+});
+
+eventSource.addEventListener('error', (event) => {
+  console.error('Stream error:', event);
+  eventSource.close();
+});
+```
+
+### Python Example
+```python
+import requests
+import json
+
+def stream_response(payload):
+    response = requests.post(
+        'https://api.openai.com/v1/responses',
+        headers={'Authorization': 'Bearer YOUR_API_KEY'},
+        json=payload,
+        stream=True
+    )
+    
+    for line in response.iter_lines():
+        if line.startswith(b'data: '):
+            data = line[6:].decode('utf-8')
+            if data == '[DONE]':
+                break
+            try:
+                event_data = json.loads(data)
+                yield event_data
+            except json.JSONDecodeError:
+                continue
+```
+
+### Error Handling for Streams
+```javascript
+eventSource.addEventListener('response.failed', (event) => {
+  const error = JSON.parse(event.data);
+  console.error('Response failed:', error.error);
+  // Implement retry logic or user notification
+});
+
+eventSource.addEventListener('error', (event) => {
+  // Network error or connection lost
+  console.error('Connection error');
+  // Implement reconnection logic
+});
+```
+
+### Performance Optimization
+1. **Buffer Management**: Implement proper buffering for audio streams
+2. **Chunk Processing**: Process text deltas incrementally for better UX
+3. **Connection Monitoring**: Monitor connection health and implement reconnection
+4. **Resource Cleanup**: Always close EventSource connections when done
 
 ---
 
@@ -543,32 +1035,48 @@ client = OpenAI(api_key="sk-your-api-key-here")
 - Set temperature to 0 for consistent transcriptions
 - Use verbose JSON format when you need detailed metadata
 - Consider file compression for large audio uploads
+- Enable streaming for real-time transcription with gpt-4o models
+- Use auto chunking strategy for optimal streaming performance
 
-### 3. General
+### 3. Streaming Implementation
+- Always implement proper error handling for stream connections
+- Use EventSource for browser-based streaming implementations
+- Implement connection monitoring and automatic reconnection
+- Buffer audio streams appropriately to prevent playback issues
+- Close streaming connections when no longer needed
+- Handle network interruptions gracefully with retry logic
+
+### 4. General
 - Implement exponential backoff for rate limiting
 - Store API keys securely (never in code)
 - Monitor token usage and costs
 - Use appropriate error handling for production applications
 - Test with different model variants to optimize performance/cost
 
-### 4. Performance Optimization
-- Cache responses when appropriate
-- Use streaming for better user experience
-- Batch requests when possible
+### 5. Performance Optimization
+- Cache non-streaming responses when appropriate
+- Use streaming for better user experience in real-time applications
+- Batch non-streaming requests when possible
 - Choose the right model for your specific use case
 - Monitor response times and adjust accordingly
+- Optimize chunking strategies for audio processing
+- Implement client-side buffering for smooth audio playback
 
 ---
 
 ## Rate Limits
 
 ### Responses API
-- Requests per minute: 500
+- Requests per minute: 500 (non-streaming)
+- Streaming requests per minute: 100
 - Tokens per minute: 200,000
 - Requests per day: 10,000
 
 ### Audio API
-- Requests per minute: 50
+- Transcription requests per minute: 50
+- Streaming transcription requests per minute: 25
+- TTS requests per minute: 50
+- Streaming TTS requests per minute: 25
 - Audio processing: 25MB file size limit
 
 *Note: Rate limits may vary based on your usage tier and account status.*
@@ -577,17 +1085,91 @@ client = OpenAI(api_key="sk-your-api-key-here")
 
 ## Pricing (2025)
 
-### Responses API
-- Input tokens: $2.50 per 1M tokens
-- Output tokens: $10.00 per 1M tokens
-- Reasoning tokens: $10.00 per 1M tokens
-- Image input: $10.00 per 1M tokens
-- Image generation: $40.00 per 1M tokens
-- Cached inputs: 75% discount
+### Responses API - Text Models
+
+#### Latest Models (Flex Processing)
+- **gpt-4.1**
+  - Input: $2.00 per 1M tokens
+  - Cached Input: $0.50 per 1M tokens
+  - Output: $8.00 per 1M tokens
+
+- **gpt-4.1-mini**
+  - Input: $0.40 per 1M tokens
+  - Output: $1.60 per 1M tokens
+
+#### Core Models
+- **gpt-4o**
+  - Input: $2.50 per 1M tokens
+  - Output: $10.00 per 1M tokens
+
+- **gpt-4o-mini**
+  - Input: $0.15 per 1M tokens
+  - Output: $0.60 per 1M tokens
+
+- **o3-mini**
+  - Input: Variable (reasoning model)
+  - Output: Variable based on reasoning complexity
+
+#### Premium Models
+- **chatgpt-4o-latest**
+  - Input: $5.00 per 1M tokens
+  - Output: $15.00 per 1M tokens
+
+- **gpt-4-turbo**
+  - Input: $10.00 per 1M tokens
+  - Output: $30.00 per 1M tokens
+
+- **gpt-4**
+  - Input: $30.00 per 1M tokens
+  - Output: $60.00 per 1M tokens
+
+- **gpt-4-32k**
+  - Input: $60.00 per 1M tokens
+  - Output: $120.00 per 1M tokens
+
+#### Legacy Models
+- **gpt-3.5-turbo**
+  - Input: $0.50 per 1M tokens
+  - Output: $1.50 per 1M tokens
+
+- **gpt-3.5-turbo-instruct**
+  - Input: $1.50 per 1M tokens
+  - Output: $2.00 per 1M tokens
 
 ### Audio API
-- Whisper transcription: $0.006 per minute
-- TTS (standard): $15.00 per 1M characters
-- TTS HD: $30.00 per 1M characters
 
-*Prices subject to change. Check OpenAI pricing page for current rates.*
+#### Speech-to-Text (Transcription)
+- **Whisper**: $0.006 per minute
+- **Audio tokens**: $10.00 per 1M tokens
+
+#### Text-to-Speech (TTS)
+- **TTS (Standard)**: $0.015 per minute
+- **TTS HD (High Quality)**: $0.030 per minute
+- **gpt-4o-mini-tts**: $0.60 per 1M characters
+
+### Additional Services
+
+#### Tools and Function Calls
+- **File Search Tool Call**: $2.50 per 1k calls (Responses API only)
+
+#### Image Generation (DALL-E)
+- **DALL-E 3 Standard**
+  - 1024×1024: $0.04 per image
+  - 1024×1792, 1792×1024: $0.08 per image
+- **DALL-E 3 HD**
+  - 1024×1024: $0.08 per image
+  - 1024×1792, 1792×1024: $0.12 per image
+
+#### Embeddings
+- **text-embedding-3-small**: $0.02 per 1M tokens
+- **text-embedding-3-large**: $0.13 per 1M tokens
+- **text-embedding-ada-002**: $0.10 per 1M tokens
+
+#### Moderation
+- **omni-moderation-latest**: Free
+- **text-moderation-latest**: Free
+
+**Notes:**
+- Streaming: No additional cost for all APIs
+- Cached inputs: Available at reduced rates for supported models
+- Prices subject to change. Check OpenAI pricing page for current rates.
