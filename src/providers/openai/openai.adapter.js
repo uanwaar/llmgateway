@@ -100,6 +100,94 @@ class OpenAIAdapter extends BaseAdapter {
     }
   }
 
+  async createResponse(request) {
+    return this._executeWithMetrics('createResponse', async () => {
+      const validation = this.models.validateModel(request.model, 'completion');
+      if (!validation.valid) {
+        throw new ValidationError(validation.error, 'INVALID_MODEL', 'openai');
+      }
+
+      if (!this.client) {
+        throw new ProviderError(
+          'OpenAI client not initialized', 
+          'CLIENT_NOT_INITIALIZED', 
+          'openai',
+        );
+      }
+
+      try {
+        logger.debug('Making OpenAI response request', {
+          model: request.model,
+          messageCount: request.messages?.length,
+          background: request.background,
+        });
+
+        const transformedRequest = OpenAITransformer.transformResponseRequest(request);
+        const response = await this.client.createResponse(transformedRequest);
+        
+        if (request.stream) {
+          return this._createResponseStreamingWrapper(response, request);
+        }
+
+        return OpenAITransformer.transformResponseResponse(response, request);
+      } catch (error) {
+        logger.error('OpenAI response request failed', {
+          error: error.message,
+          model: request.model,
+        });
+        throw error;
+      }
+    });
+  }
+
+  async retrieveResponse(responseId) {
+    return this._executeWithMetrics('retrieveResponse', async () => {
+      if (!this.client) {
+        throw new ProviderError(
+          'OpenAI client not initialized', 
+          'CLIENT_NOT_INITIALIZED', 
+          'openai',
+        );
+      }
+
+      try {
+        logger.debug('Retrieving OpenAI response', { responseId });
+        const response = await this.client.retrieveResponse(responseId);
+        return OpenAITransformer.transformResponseResponse(response);
+      } catch (error) {
+        logger.error('OpenAI retrieve response failed', {
+          error: error.message,
+          responseId,
+        });
+        throw error;
+      }
+    });
+  }
+
+  async cancelResponse(responseId) {
+    return this._executeWithMetrics('cancelResponse', async () => {
+      if (!this.client) {
+        throw new ProviderError(
+          'OpenAI client not initialized', 
+          'CLIENT_NOT_INITIALIZED', 
+          'openai',
+        );
+      }
+
+      try {
+        logger.debug('Cancelling OpenAI response', { responseId });
+        const response = await this.client.cancelResponse(responseId);
+        return OpenAITransformer.transformResponseResponse(response);
+      } catch (error) {
+        logger.error('OpenAI cancel response failed', {
+          error: error.message,
+          responseId,
+        });
+        throw error;
+      }
+    });
+  }
+
   async _makeEmbeddingRequest(request) {
     if (!this.client) {
       throw new ProviderError('OpenAI client not initialized', 'CLIENT_NOT_INITIALIZED', 'openai');
@@ -312,6 +400,13 @@ class OpenAIAdapter extends BaseAdapter {
       'vision',
       'audio',
       'reasoning',
+      'responses',
+      'background_processing',
+      'built_in_tools',
+      'web_search',
+      'file_search',
+      'code_interpreter',
+      'image_generation',
     ];
   }
 
@@ -399,6 +494,35 @@ class OpenAIAdapter extends BaseAdapter {
           }
         } catch (error) {
           logger.error('Error in OpenAI TTS streaming response', {
+            error: error.message,
+            requestId,
+          });
+          throw error;
+        }
+      },
+    };
+  }
+
+  _createResponseStreamingWrapper(response, originalRequest) {
+    const requestId = this._generateRequestId();
+    
+    return {
+      id: requestId,
+      provider: 'openai',
+      model: originalRequest.model,
+      streaming: true,
+      type: 'response',
+      async *[Symbol.asyncIterator] () {
+        try {
+          for await (const event of response) {
+            const transformedEvent = OpenAITransformer.transformResponseStreamingEvent(
+              event, 
+              requestId,
+            );
+            yield transformedEvent;
+          }
+        } catch (error) {
+          logger.error('Error in OpenAI response streaming', {
             error: error.message,
             requestId,
           });

@@ -366,6 +366,93 @@ class OpenAIClient {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
+  async createResponse(request) {
+    logger.debug('Making OpenAI response request', {
+      model: request.model,
+      messageCount: request.messages?.length,
+      stream: request.stream,
+      background: request.background,
+    });
+
+    const response = await this.makeRequest('/responses', {
+      method: 'POST',
+      data: request,
+      stream: request.stream,
+    });
+
+    if (request.stream) {
+      return this._handleResponseStreamingResponse(response);
+    }
+
+    return response.data;
+  }
+
+  async retrieveResponse(responseId) {
+    logger.debug('Retrieving OpenAI response', {
+      responseId,
+    });
+
+    const response = await this.makeRequest(`/responses/${responseId}`, {
+      method: 'GET',
+    });
+
+    return response.data;
+  }
+
+  async cancelResponse(responseId) {
+    logger.debug('Cancelling OpenAI response', {
+      responseId,
+    });
+
+    const response = await this.makeRequest(`/responses/${responseId}/cancel`, {
+      method: 'POST',
+    });
+
+    return response.data;
+  }
+
+  async _handleResponseStreamingResponse(stream) {
+    const events = [];
+    
+    return new Promise((resolve, reject) => {
+      stream.on('data', (chunk) => {
+        events.push(chunk);
+      });
+
+      stream.on('end', () => {
+        resolve({
+          stream: true,
+          events,
+          async *[Symbol.asyncIterator] () {
+            for (const chunk of events) {
+              const lines = chunk.toString().split('\n');
+              for (const line of lines) {
+                if (line.startsWith('event: ')) {
+                  // Skip event type line
+                  continue;
+                }
+                if (line.startsWith('data: ')) {
+                  const data = line.slice(6);
+                  if (data === '[DONE]') {
+                    return;
+                  }
+                  try {
+                    const eventData = JSON.parse(data);
+                    yield eventData;
+                  } catch (error) {
+                    // Skip invalid JSON
+                  }
+                }
+              }
+            }
+          },
+        });
+      });
+
+      stream.on('error', reject);
+    });
+  }
+
   async healthCheck() {
     try {
       await this.listModels();

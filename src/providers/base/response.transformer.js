@@ -15,6 +15,7 @@ class ResponseTransformer {
           prompt_tokens: 0,
           completion_tokens: 0,
           total_tokens: 0,
+          reasoning_tokens: 0,
         },
         system_fingerprint: null,
         metadata: {
@@ -204,12 +205,21 @@ class ResponseTransformer {
       prompt_tokens: 0,
       completion_tokens: 0,
       total_tokens: 0,
+      reasoning_tokens: 0,
     };
 
     try {
       switch (providerName) {
       case 'openai':
-        return providerResponse.usage || defaultUsage;
+        if (providerResponse.usage) {
+          return {
+            prompt_tokens: providerResponse.usage.prompt_tokens || 0,
+            completion_tokens: providerResponse.usage.completion_tokens || 0,
+            total_tokens: providerResponse.usage.total_tokens || 0,
+            reasoning_tokens: providerResponse.usage.reasoning_tokens || 0,
+          };
+        }
+        return defaultUsage;
         
       case 'gemini':
         if (providerResponse.usageMetadata) {

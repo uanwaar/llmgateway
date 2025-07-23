@@ -26,22 +26,185 @@ providers:
     timeout: 30000
     retryCount: 3
     retryDelay: 1000
+    features:
+      responses_api: true
+      background_processing: true
+      built_in_tools: true
+      streaming_events: true
     models:
+      # GPT-4o Series
       gpt-4o:
         costPerInputToken: 0.0000025
         costPerOutputToken: 0.00001
         maxTokens: 128000
         multimodal: true
+        features: ["completion", "streaming", "multimodal", "tools", "vision", "audio"]
+      gpt-4o-audio:
+        costPerInputToken: 0.0000025
+        costPerOutputToken: 0.00001
+        maxTokens: 128000
+        multimodal: true
+        features: ["completion", "streaming", "multimodal", "tools", "vision", "audio", "realtime"]
+      gpt-4o-realtime:
+        costPerInputToken: 0.0000025
+        costPerOutputToken: 0.00001
+        maxTokens: 128000
+        multimodal: true
+        features: ["completion", "streaming", "multimodal", "tools", "vision", "audio", "realtime"]
+      gpt-4o-search-preview:
+        costPerInputToken: 0.0000025
+        costPerOutputToken: 0.00001
+        maxTokens: 128000
+        multimodal: true
+        features: ["completion", "streaming", "multimodal", "tools", "vision", "web_search"]
+      gpt-4o-transcribe:
+        costPerInputToken: 0.000012
+        costPerOutputToken: 0
+        maxTokens: null
+        type: "transcription"
+        features: ["transcription", "streaming", "logprobs"]
       gpt-4o-mini:
         costPerInputToken: 0.00000015
         costPerOutputToken: 0.0000006
         maxTokens: 128000
         multimodal: true
+        features: ["completion", "streaming", "multimodal", "tools", "vision"]
+      gpt-4o-mini-audio:
+        costPerInputToken: 0.00000015
+        costPerOutputToken: 0.0000006
+        maxTokens: 128000
+        multimodal: true
+        features: ["completion", "streaming", "multimodal", "tools", "vision", "audio", "realtime"]
+      gpt-4o-mini-realtime:
+        costPerInputToken: 0.00000015
+        costPerOutputToken: 0.0000006
+        maxTokens: 128000
+        multimodal: true
+        features: ["completion", "streaming", "multimodal", "tools", "vision", "audio", "realtime"]
+      gpt-4o-mini-search-preview:
+        costPerInputToken: 0.00000015
+        costPerOutputToken: 0.0000006
+        maxTokens: 128000
+        multimodal: true
+        features: ["completion", "streaming", "multimodal", "tools", "vision", "web_search"]
+      gpt-4o-mini-transcribe:
+        costPerInputToken: 0.000008
+        costPerOutputToken: 0
+        maxTokens: null
+        type: "transcription"
+        features: ["transcription", "streaming", "logprobs"]
+      gpt-4o-mini-tts:
+        costPerInputToken: 0.000025
+        costPerOutputToken: 0
+        maxTokens: 4096
+        type: "tts"
+        features: ["tts", "streaming", "voice_instructions"]
+      
+      # GPT-4 Series
       gpt-4-turbo:
         costPerInputToken: 0.00001
         costPerOutputToken: 0.00003
         maxTokens: 128000
         multimodal: true
+        features: ["completion", "streaming", "multimodal", "tools", "vision"]
+      gpt-4.1:
+        costPerInputToken: 0.00001
+        costPerOutputToken: 0.00003
+        maxTokens: 128000
+        features: ["completion", "streaming", "tools"]
+      gpt-4:
+        costPerInputToken: 0.00003
+        costPerOutputToken: 0.00006
+        maxTokens: 8192
+        features: ["completion", "streaming", "tools"]
+        
+      # O-Series (Reasoning Models)
+      o3:
+        costPerInputToken: 0.000005
+        costPerOutputToken: 0.000015
+        maxTokens: 200000
+        features: ["completion", "reasoning", "tools"]
+      o3-pro:
+        costPerInputToken: 0.000015
+        costPerOutputToken: 0.00005
+        maxTokens: 200000
+        features: ["completion", "reasoning", "tools", "advanced_reasoning"]
+      o3-mini:
+        costPerInputToken: 0.000001
+        costPerOutputToken: 0.000004
+        maxTokens: 128000
+        features: ["completion", "reasoning", "tools"]
+      o3-deep-research:
+        costPerInputToken: 0.00002
+        costPerOutputToken: 0.00008
+        maxTokens: 200000
+        features: ["completion", "reasoning", "tools", "deep_research"]
+      o4-mini:
+        costPerInputToken: 0.0000008
+        costPerOutputToken: 0.0000032
+        maxTokens: 128000
+        features: ["completion", "reasoning", "tools"]
+      o4-mini-deep-research:
+        costPerInputToken: 0.000008
+        costPerOutputToken: 0.000032
+        maxTokens: 128000
+        features: ["completion", "reasoning", "tools", "deep_research"]
+      o1-preview:
+        costPerInputToken: 0.000015
+        costPerOutputToken: 0.00006
+        maxTokens: 128000
+        features: ["completion", "reasoning"]
+      o1-mini:
+        costPerInputToken: 0.000003
+        costPerOutputToken: 0.000012
+        maxTokens: 128000
+        features: ["completion", "reasoning"]
+        
+      # Audio Models
+      whisper-1:
+        costPerInputToken: 0.006
+        costPerOutputToken: 0
+        maxTokens: null
+        type: "transcription"
+        unit: "per_minute"
+        features: ["transcription", "translation"]
+      tts-1:
+        costPerInputToken: 0.000015
+        costPerOutputToken: 0
+        maxTokens: 4096
+        type: "tts"
+        unit: "per_1M_characters"
+        features: ["tts"]
+      tts-1-hd:
+        costPerInputToken: 0.00003
+        costPerOutputToken: 0
+        maxTokens: 4096
+        type: "tts"
+        unit: "per_1M_characters"
+        features: ["tts", "high_definition"]
+        
+      # Embedding Models
+      text-embedding-3-large:
+        costPerInputToken: 0.00000013
+        costPerOutputToken: 0
+        maxTokens: 8191
+        type: "embedding"
+        dimensions: 3072
+        features: ["embedding", "reduced_dimensions"]
+      text-embedding-3-small:
+        costPerInputToken: 0.00000002
+        costPerOutputToken: 0
+        maxTokens: 8191
+        type: "embedding"
+        dimensions: 1536
+        features: ["embedding", "reduced_dimensions"]
+      text-embedding-ada-002:
+        costPerInputToken: 0.0000001
+        costPerOutputToken: 0
+        maxTokens: 8191
+        type: "embedding"
+        dimensions: 1536
+        features: ["embedding"]
       
   gemini:
     enabled: true

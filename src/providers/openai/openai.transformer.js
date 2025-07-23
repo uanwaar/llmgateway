@@ -316,6 +316,155 @@ class OpenAITransformer {
     }
   }
 
+  static transformResponseRequest(request) {
+    try {
+      const transformed = {
+        model: request.model,
+        messages: this._normalizeMessages(request.messages),
+        ...this._extractResponseParameters(request),
+      };
+
+      if (request.tools && request.tools.length > 0) {
+        transformed.tools = this._transformBuiltInTools(request.tools);
+      }
+
+      if (request.tool_choice) {
+        transformed.tool_choice = request.tool_choice;
+      }
+
+      return transformed;
+    } catch (error) {
+      logger.error('Failed to transform OpenAI response request', {
+        error: error.message,
+        model: request.model,
+      });
+      throw new ValidationError(
+        `OpenAI response request transformation failed: ${error.message}`,
+        'REQUEST_TRANSFORMATION_ERROR',
+      );
+    }
+  }
+
+  static transformResponseResponse(response, originalRequest) {
+    try {
+      const unified = ResponseTransformer.transformToUnifiedFormat(
+        response, 'openai', originalRequest,
+      );
+      
+      // Handle Responses API structure
+      if (response.choices && response.choices.length > 0) {
+        unified.choices = response.choices.map((choice, index) => ({
+          index,
+          message: {
+            role: choice.message?.role || 'assistant',
+            content: choice.message?.content || null,
+            tool_calls: choice.message?.tool_calls || null,
+            reasoning: choice.message?.reasoning || null,
+            refusal: choice.message?.refusal || null,
+          },
+          finish_reason: choice.finish_reason,
+          logprobs: choice.logprobs || null,
+        }));
+      }
+
+      // Add usage information with reasoning tokens
+      unified.usage = this._extractResponseUsage(response);
+
+      // Add Responses API specific metadata
+      if (response.system_fingerprint) {
+        unified.system_fingerprint = response.system_fingerprint;
+      }
+
+      if (response.status) {
+        unified.status = response.status;
+      }
+
+      if (response.background) {
+        unified.background = response.background;
+      }
+
+      unified.metadata = {
+        ...unified.metadata,
+        provider_response_id: response.id,
+        provider_model: response.model,
+        provider_created: response.created,
+        api_type: 'responses',
+      };
+
+      ResponseTransformer.validateUnifiedResponse(unified);
+      return ResponseTransformer.sanitizeResponse(unified);
+    } catch (error) {
+      logger.error('Failed to transform OpenAI response response', {
+        error: error.message,
+        responseId: response.id,
+      });
+      throw new ValidationError(
+        `OpenAI response response transformation failed: ${error.message}`,
+        'RESPONSE_TRANSFORMATION_ERROR',
+      );
+    }
+  }
+
+  static transformResponseStreamingEvent(event, requestId) {
+    try {
+      // Handle different Responses API streaming event types
+      const baseEvent = {
+        id: requestId,
+        provider: 'openai',
+        timestamp: Date.now(),
+      };
+
+      // Map event types to unified format
+      if (event.object === 'response.chunk') {
+        return {
+          ...baseEvent,
+          type: 'response.delta',
+          data: {
+            choices: event.choices?.map(choice => ({
+              index: choice.index,
+              delta: choice.delta,
+              finish_reason: choice.finish_reason,
+            })) || [],
+          },
+        };
+      }
+
+      // Handle specific event types from the documentation
+      const eventTypeMap = {
+        'response.created': 'response.created',
+        'response.in_progress': 'response.in_progress',
+        'response.completed': 'response.completed',
+        'response.failed': 'response.failed',
+        'response.incomplete': 'response.incomplete',
+        'response.output_item.added': 'output_item.added',
+        'response.content_part.added': 'content_part.added',
+        'response.output_text.delta': 'text.delta',
+        'response.output_text.done': 'text.done',
+        'response.function_call_arguments.delta': 'function_call.delta',
+        'response.function_call_arguments.done': 'function_call.done',
+        'response.web_search_call.added': 'web_search.added',
+        'response.code_interpreter_call.added': 'code_interpreter.added',
+        'response.file_search_call.added': 'file_search.added',
+        'response.image_generation_call.added': 'image_generation.added',
+      };
+
+      return {
+        ...baseEvent,
+        type: eventTypeMap[event.type] || event.type,
+        data: event,
+      };
+    } catch (error) {
+      logger.error('Failed to transform OpenAI response streaming event', {
+        error: error.message,
+        requestId,
+      });
+      throw new ValidationError(
+        `OpenAI response streaming event transformation failed: ${error.message}`,
+        'STREAMING_EVENT_TRANSFORMATION_ERROR',
+      );
+    }
+  }
+
   static transformStreamingChunk(chunk, requestId) {
     try {
       return ResponseTransformer.transformStreamingChunk(chunk, 'openai', requestId);
@@ -408,6 +557,85 @@ class OpenAITransformer {
     });
   }
 
+  static _transformBuiltInTools(tools) {
+    return tools.map(tool => {
+      // Handle built-in tools for Responses API
+      if (tool.type === 'web_search_preview') {
+        return { type: 'web_search_preview' };
+      }
+
+      if (tool.type === 'file_search') {
+        return {
+          type: 'file_search',
+          file_search: {
+            vector_store_ids: tool.file_search?.vector_store_ids || [],
+            max_num_results: tool.file_search?.max_num_results || 20,
+          },
+        };
+      }
+
+      if (tool.type === 'code_interpreter') {
+        return { type: 'code_interpreter' };
+      }
+
+      if (tool.type === 'dalle') {
+        return { type: 'dalle' };
+      }
+
+      // Handle regular function tools
+      if (tool.type === 'function') {
+        return {
+          type: 'function',
+          function: {
+            name: tool.function.name,
+            description: tool.function.description,
+            parameters: tool.function.parameters,
+            strict: tool.function.strict,
+          },
+        };
+      }
+
+      return tool;
+    });
+  }
+
+  static _extractResponseParameters(request) {
+    const parameters = {};
+
+    const allowedParams = [
+      'stream', 'stream_options', 'background', 'max_completion_tokens',
+      'temperature', 'top_p', 'frequency_penalty', 'presence_penalty',
+      'user', 'response_format', 'seed', 'logit_bias', 'logprobs',
+      'top_logprobs', 'n', 'service_tier', 'parallel_tool_calls',
+    ];
+
+    allowedParams.forEach(param => {
+      if (request[param] !== undefined) {
+        parameters[param] = request[param];
+      }
+    });
+
+    return parameters;
+  }
+
+  static _extractResponseUsage(response) {
+    if (response.usage) {
+      return {
+        prompt_tokens: response.usage.prompt_tokens || 0,
+        completion_tokens: response.usage.completion_tokens || 0,
+        total_tokens: response.usage.total_tokens || 0,
+        reasoning_tokens: response.usage.reasoning_tokens || 0,
+      };
+    }
+
+    return {
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      total_tokens: 0,
+      reasoning_tokens: 0,
+    };
+  }
+
   static transformError(error) {
     return ResponseTransformer.transformError(error, 'openai');
   }
@@ -418,6 +646,7 @@ class OpenAITransformer {
       embedding: this._validateEmbeddingRequest,
       transcription: this._validateTranscriptionRequest,
       tts: this._validateTTSRequest,
+      response: this._validateResponseRequest,
     };
 
     const validator = validators[type];
@@ -507,6 +736,71 @@ class OpenAITransformer {
         `Invalid voice: ${request.voice}. Valid voices: ${validVoices.join(', ')}`,
         'INVALID_VOICE',
       );
+    }
+
+    return true;
+  }
+
+  static _validateResponseRequest(request) {
+    if (!request.model) {
+      throw new ValidationError('Model is required', 'MISSING_MODEL');
+    }
+
+    if (!request.messages || !Array.isArray(request.messages) ||
+        request.messages.length === 0) {
+      throw new ValidationError(
+        'Messages array is required and cannot be empty',
+        'INVALID_MESSAGES',
+      );
+    }
+
+    // Validate message structure (same as chat request)
+    request.messages.forEach((message, index) => {
+      if (!message.role || !['system', 'user', 'assistant', 'tool'].includes(message.role)) {
+        throw new ValidationError(
+          `Invalid role in message ${index}: ${message.role}`,
+          'INVALID_MESSAGE_ROLE',
+        );
+      }
+
+      if (!message.content && !message.tool_calls) {
+        throw new ValidationError(
+          `Message ${index} must have content or tool_calls`,
+          'INVALID_MESSAGE_CONTENT',
+        );
+      }
+    });
+
+    // Validate tools if provided
+    if (request.tools && Array.isArray(request.tools)) {
+      request.tools.forEach((tool, index) => {
+        if (!tool.type) {
+          throw new ValidationError(
+            `Tool ${index} must have a type`,
+            'INVALID_TOOL_TYPE',
+          );
+        }
+
+        const validBuiltInTools = [
+          'web_search_preview', 'file_search', 'code_interpreter', 'dalle',
+        ];
+
+        if (tool.type === 'function') {
+          if (!tool.function || !tool.function.name) {
+            throw new ValidationError(
+              `Function tool ${index} must have function.name`,
+              'INVALID_FUNCTION_TOOL',
+            );
+          }
+        } else if (!validBuiltInTools.includes(tool.type)) {
+          throw new ValidationError(
+            `Invalid tool type: ${tool.type}. Valid types: ${
+              validBuiltInTools.join(', ')
+            }, function`,
+            'INVALID_TOOL_TYPE',
+          );
+        }
+      });
     }
 
     return true;
