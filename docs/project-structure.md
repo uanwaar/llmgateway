@@ -44,6 +44,7 @@ llm-gateway/
 │   ├── controllers/                    # Request handlers
 │   │   ├── chat.controller.js          # Chat completions endpoint
 │   │   ├── embeddings.controller.js    # Embeddings endpoint
+│   │   ├── audio.controller.js         # Audio transcription and TTS endpoint
 │   │   ├── health.controller.js        # Health check endpoints
 │   │   ├── config.controller.js        # Configuration endpoints
 │   │   └── metrics.controller.js       # Metrics and monitoring
@@ -66,12 +67,14 @@ llm-gateway/
 │   │   │   ├── openai.adapter.js       # OpenAI API adapter
 │   │   │   ├── openai.transformer.js   # Request/response transformation
 │   │   │   ├── openai.models.js        # Model definitions and mappings
+│   │   │   ├── openai.audio.js         # Whisper and TTS integration
 │   │   │   └── openai.client.js        # HTTP client for OpenAI API
 │   │   │
 │   │   └── gemini/                     # Google Gemini provider
 │   │       ├── gemini.adapter.js       # Gemini API adapter
 │   │       ├── gemini.transformer.js   # Request/response transformation
 │   │       ├── gemini.models.js        # Model definitions and mappings
+│   │       ├── gemini.audio.js         # Speech-to-Text integration
 │   │       └── gemini.client.js        # HTTP client for Gemini API
 │   │
 │   ├── middleware/                     # Express middleware
@@ -89,6 +92,7 @@ llm-gateway/
 │   │   │   ├── index.js                # V1 route aggregator
 │   │   │   ├── chat.routes.js          # Chat completions routes
 │   │   │   ├── embeddings.routes.js    # Embeddings routes
+│   │   │   ├── audio.routes.js         # Audio transcription and TTS routes
 │   │   │   ├── models.routes.js        # Model listing routes
 │   │   │   └── streaming.routes.js     # Streaming endpoints
 │   │   │
@@ -171,6 +175,7 @@ llm-gateway/
 │   ├── javascript/                     # JavaScript examples
 │   │   ├── basic-usage.js              # Basic API usage
 │   │   ├── streaming.js                # Streaming responses
+│   │   ├── audio-transcription.js      # Audio transcription examples
 │   │   └── error-handling.js           # Error handling patterns
 │   │
 │   ├── python/                         # Python examples
@@ -181,6 +186,8 @@ llm-gateway/
 │   ├── curl/                           # cURL examples
 │   │   ├── chat_completion.sh          # Chat completions
 │   │   ├── streaming.sh                # Streaming requests
+│   │   ├── audio_transcription.sh      # Audio transcription requests
+│   │   ├── text_to_speech.sh           # Text-to-speech requests
 │   │   └── embeddings.sh               # Embeddings requests
 │   │
 │   └── docker/                         # Docker usage examples
@@ -317,6 +324,17 @@ llm-gateway/
 // - Response transformation to unified format
 // - Streaming response handling
 // - Error code mapping
+// - Audio transcription and TTS support
+```
+
+#### `src/providers/openai/openai.audio.js`
+```javascript
+// OpenAI audio services implementation
+// Features:
+// - Whisper API integration for transcription
+// - Text-to-speech API integration
+// - Audio file format validation
+// - Streaming audio response handling
 ```
 
 #### `src/providers/gemini/gemini.adapter.js`
@@ -327,6 +345,17 @@ llm-gateway/
 // - Multimodal content handling
 // - Response transformation to unified format
 // - Context caching support
+// - Audio transcription support
+```
+
+#### `src/providers/gemini/gemini.audio.js`
+```javascript
+// Google Gemini audio services implementation
+// Features:
+// - Speech-to-Text API integration
+// - Audio content processing for multimodal requests
+// - Audio format validation and conversion
+// - Streaming audio response handling
 ```
 
 ### Controllers
@@ -339,6 +368,16 @@ llm-gateway/
 // - Provider routing and delegation
 // - Response formatting and streaming
 // - Error handling and fallback
+```
+
+#### `src/controllers/audio.controller.js`
+```javascript
+// Audio processing endpoint handler
+// Responsibilities:
+// - Audio transcription request handling
+// - Text-to-speech request processing
+// - File upload validation and processing
+// - Audio format conversion and validation
 ```
 
 #### `src/controllers/health.controller.js`

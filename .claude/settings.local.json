@@ -6,7 +6,10 @@
       "Bash(npm install:*)",
       "Bash(touch:*)",
       "Bash(npx eslint:*)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(npm run lint:*)",
+      "Bash(npm test)",
+      "Bash(node:*)"
     ],
     "deny": []
   }
