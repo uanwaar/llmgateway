@@ -1,0 +1,33 @@
+# Production environment configuration
+server:
+  port: 8080
+  corsEnabled: true
+  corsOrigins: []  # Set specific origins in production
+
+auth:
+  requireAuthHeader: true
+
+providers:
+  openai:
+    timeout: 30000
+    retryCount: 3
+  gemini:
+    timeout: 30000
+    retryCount: 3
+
+cache:
+  enabled: true
+  backend: "redis"
+  ttl: 3600
+
+logging:
+  level: "info"
+  format: "json"
+
+rateLimit:
+  windowMs: 900000  # 15 minutes
+  max: 100
+
+metrics:
+  enabled: true
+  collectDefaultMetrics: true

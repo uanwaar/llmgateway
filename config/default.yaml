@@ -1,0 +1,112 @@
+# Default configuration for LLM Gateway
+server:
+  port: 8080
+  host: "0.0.0.0"
+  timeout: 30000
+  keepAliveTimeout: 5000
+  headersTimeout: 6000
+  corsEnabled: true
+  corsOrigins: "*"
+  rateLimitingEnabled: true
+  ssl:
+    enabled: false
+    keyPath: ""
+    certPath: ""
+
+auth:
+  mode: "hybrid"  # gateway, client, hybrid
+  allowClientKeys: true
+  requireAuthHeader: false
+  apiKeyHeader: "X-API-Key"
+
+providers:
+  openai:
+    enabled: true
+    baseUrl: "https://api.openai.com/v1"
+    timeout: 30000
+    retryCount: 3
+    retryDelay: 1000
+    models:
+      gpt-4o:
+        costPerInputToken: 0.0000025
+        costPerOutputToken: 0.00001
+        maxTokens: 128000
+        multimodal: true
+      gpt-4o-mini:
+        costPerInputToken: 0.00000015
+        costPerOutputToken: 0.0000006
+        maxTokens: 128000
+        multimodal: true
+      gpt-4-turbo:
+        costPerInputToken: 0.00001
+        costPerOutputToken: 0.00003
+        maxTokens: 128000
+        multimodal: true
+      
+  gemini:
+    enabled: true
+    baseUrl: "https://generativelanguage.googleapis.com/v1"
+    timeout: 30000
+    retryCount: 3
+    retryDelay: 1000
+    models:
+      gemini-2.5-pro:
+        costPerInputToken: 0.00000125
+        costPerOutputToken: 0.00000375
+        maxTokens: 1000000
+        multimodal: true
+      gemini-2.5-flash:
+        costPerInputToken: 0.000000075
+        costPerOutputToken: 0.0000003
+        maxTokens: 1000000
+        multimodal: true
+      gemini-2.0-flash:
+        costPerInputToken: 0.000000075
+        costPerOutputToken: 0.0000003
+        maxTokens: 1000000
+        multimodal: true
+
+routing:
+  strategy: "cost_optimized"  # round_robin, performance, cost_optimized, health_based
+  failoverEnabled: true
+  healthCheckInterval: 30000
+  circuitBreakerThreshold: 5
+  circuitBreakerTimeout: 60000
+
+cache:
+  enabled: true
+  backend: "memory"  # memory, redis
+  ttl: 3600
+  maxSize: 1000
+  redis:
+    url: "redis://localhost:6379"
+    keyPrefix: "llm_gateway:"
+    db: 0
+
+rateLimit:
+  windowMs: 900000  # 15 minutes
+  max: 100  # requests per window
+  message: "Too many requests, please try again later"
+  standardHeaders: true
+  legacyHeaders: false
+
+logging:
+  level: "info"  # error, warn, info, debug
+  format: "json"  # json, text
+  correlationId: true
+  requestLogging: true
+  errorLogging: true
+
+metrics:
+  enabled: true
+  endpoint: "/metrics"
+  collectDefaultMetrics: true
+  requestDuration: true
+  providerMetrics: true
+
+security:
+  helmet:
+    contentSecurityPolicy: false
+  cors:
+    credentials: true
+  requestSizeLimit: "10mb"

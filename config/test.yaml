@@ -1,0 +1,28 @@
+# Test environment configuration
+server:
+  port: 0  # Random port for tests
+  corsEnabled: false
+  rateLimitingEnabled: false
+
+auth:
+  requireAuthHeader: false
+
+providers:
+  openai:
+    timeout: 5000
+    retryCount: 1
+  gemini:
+    timeout: 5000
+    retryCount: 1
+
+cache:
+  enabled: false  # Disable cache for consistent tests
+
+logging:
+  level: "error"  # Minimal logging during tests
+
+rateLimit:
+  max: 10000  # High limit for tests
+
+metrics:
+  enabled: false
