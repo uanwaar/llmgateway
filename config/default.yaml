@@ -26,6 +26,7 @@ providers:
     timeout: 30000
     retryCount: 3
     retryDelay: 1000
+    useResponsesAPI: true  # Use responses API by default, set to false for chat completions
     features:
       responses_api: true
       background_processing: true

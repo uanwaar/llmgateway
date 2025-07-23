@@ -87,10 +87,16 @@ class OpenAIAdapter extends BaseAdapter {
       logger.debug('Making OpenAI completion request', {
         model: request.model,
         messageCount: request.messages?.length,
+        useResponsesAPI: this.config.useResponsesAPI !== false,
       });
 
-      const response = await this.client.chatCompletion(request);
-      return OpenAITransformer.transformChatResponse(response, request);
+      // Use responses API by default, fallback to chat completions if disabled
+      if (this.config.useResponsesAPI !== false) {
+        return await this._makeResponsesAPIRequest(request);
+      } else {
+        const response = await this.client.chatCompletion(request);
+        return OpenAITransformer.transformChatResponse(response, request);
+      }
     } catch (error) {
       logger.error('OpenAI completion request failed', {
         error: error.message,
@@ -98,6 +104,72 @@ class OpenAIAdapter extends BaseAdapter {
       });
       throw error;
     }
+  }
+
+  async _makeResponsesAPIRequest(request) {
+    try {
+      const transformedRequest = OpenAITransformer.transformResponseRequest(request);
+      const response = await this.client.createResponse(transformedRequest);
+      
+      // If it's a background request, return the response ID for polling
+      if (transformedRequest.background) {
+        return {
+          id: response.id,
+          status: response.status,
+          created: response.created,
+          background: true,
+        };
+      }
+      
+      // For non-background requests, check if response is complete
+      if (response.status === 'completed') {
+        return OpenAITransformer.transformResponseResponse(response, request);
+      } else {
+        // Poll for completion if not immediately ready
+        return await this._pollForCompletion(response.id, request);
+      }
+    } catch (error) {
+      logger.warn('Responses API failed, falling back to chat completions', {
+        error: error.message,
+        model: request.model,
+      });
+      
+      // Fallback to chat completions API
+      const response = await this.client.chatCompletion(request);
+      return OpenAITransformer.transformChatResponse(response, request);
+    }
+  }
+
+  async _pollForCompletion(responseId, originalRequest, maxAttempts = 30) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const response = await this.client.retrieveResponse(responseId);
+        
+        if (response.status === 'completed') {
+          return OpenAITransformer.transformResponseResponse(response, originalRequest);
+        } else if (response.status === 'failed' || response.status === 'cancelled') {
+          throw new ProviderError(
+            `Response ${response.status}: ${response.error?.message || 'Unknown error'}`,
+            'RESPONSE_FAILED',
+            'openai'
+          );
+        }
+        
+        // Wait before next poll (exponential backoff)
+        const delay = Math.min(1000 * Math.pow(1.5, attempt), 10000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } catch (error) {
+        if (attempt === maxAttempts - 1) {
+          throw error;
+        }
+      }
+    }
+    
+    throw new ProviderError(
+      'Response polling timed out',
+      'POLLING_TIMEOUT',
+      'openai'
+    );
   }
 
   async createResponse(request) {

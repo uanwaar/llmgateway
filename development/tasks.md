@@ -242,66 +242,111 @@ This document outlines the comprehensive development roadmap for the LLM Gateway
 
 ---
 
-## Phase 4: API Layer and Endpoints
+## Phase 4: API Layer and Endpoints ✅ COMPLETED
 
-### TASK-009: Core API Routes and Controllers
+### TASK-009: Core API Routes and Controllers ✅ COMPLETED
 **Description**: Implement the main API endpoints including chat completions, embeddings, and model listings.
 
-**Files to create/update**:
-- `src/routes/index.js` - Route aggregator
-- `src/routes/v1/index.js` - V1 route aggregator
-- `src/routes/v1/chat.routes.js` - Chat completions routes
-- `src/routes/v1/embeddings.routes.js` - Embeddings routes
-- `src/routes/v1/audio.routes.js` - Audio transcription and TTS routes
-- `src/routes/v1/models.routes.js` - Model listing routes
-- `src/routes/v1/streaming.routes.js` - Streaming endpoints
-- `src/controllers/chat.controller.js` - Chat completions handler
-- `src/controllers/embeddings.controller.js` - Embeddings handler
-- `src/controllers/audio.controller.js` - Audio transcription and TTS handler
+**Files created/updated**:
+- ✅ `src/routes/index.js` - Route aggregator
+- ✅ `src/routes/v1/index.js` - V1 route aggregator
+- ✅ `src/routes/v1/chat.js` - Chat completions routes
+- ✅ `src/routes/v1/embeddings.js` - Embeddings routes
+- ✅ `src/routes/v1/audio.js` - Audio transcription and TTS routes
+- ✅ `src/routes/v1/models.js` - Model listing routes
+- ✅ `src/routes/v1/health.js` - Health check routes
+- ✅ `src/controllers/chat.controller.js` - Chat completions handler
+- ✅ `src/controllers/embeddings.controller.js` - Embeddings handler
+- ✅ `src/controllers/audio.controller.js` - Audio transcription and TTS handler
+- ✅ `src/controllers/models.controller.js` - Models listing handler
+- ✅ `src/controllers/health.controller.js` - Health check handler
 
 **Reference files**:
 - `docs/project-structure.md` (lines 86-97) - API route structure
 - `docs/project-structure.md` (lines 334-342) - Chat controller features
 - `.claude/claude.md` (lines 53-56) - API layer overview
+- `src/app.js` - Express application setup and middleware configuration
+- `src/server.js` - HTTP server configuration and startup
+- `src/providers/openai/openai.adapter.js` - OpenAI provider implementation
+- `src/providers/gemini/gemini.adapter.js` - Gemini provider implementation
+- `src/providers/openai/openai.models.js` - OpenAI model definitions
+- `src/providers/gemini/gemini.models.js` - Gemini model definitions
+- `src/config/providers.js` - Provider configuration settings
+- `src/utils/errors.js` - Custom error classes for proper error handling
+- `src/utils/logger.js` - Logging utilities for request/response logging
+- `src/middleware/error.middleware.js` - Global error handling middleware
 
 **Dependencies**: TASK-005, TASK-007, TASK-008
 
-**Sub-tasks**:
-1. Set up Express router structure with versioning
-2. Implement chat completions endpoint with provider routing
-3. Create embeddings endpoint with fallback support
-4. Add audio transcription endpoint (/v1/audio/transcriptions)
-5. Add text-to-speech endpoint (/v1/audio/speech)
-6. Add audio translation endpoint (/v1/audio/translations)
-7. Add model listing endpoint with unified model catalog
-8. Implement streaming response handling
-9. Add request validation and sanitization for all endpoints
+**Sub-tasks**: ✅ ALL COMPLETED
+1. ✅ Set up Express router structure with versioning
+2. ✅ Implement chat completions endpoint with provider routing
+3. ✅ Create embeddings endpoint with fallback support
+4. ✅ Add audio transcription endpoint (/v1/audio/transcriptions)
+5. ✅ Add text-to-speech endpoint (/v1/audio/speech)
+6. ✅ Add audio translation endpoint (/v1/audio/translations)
+7. ✅ Add model listing endpoint with unified model catalog
+8. ✅ Implement streaming response handling
+9. ✅ Add request validation and sanitization for all endpoints
 
 ---
 
-### TASK-010: Health Check and Monitoring Endpoints
+### TASK-010: Health Check and Monitoring Endpoints ✅ COMPLETED
 **Description**: Implement comprehensive health check endpoints and monitoring capabilities for production deployments.
 
-**Files to create/update**:
-- `src/controllers/health.controller.js` - Health check implementations
-- `src/controllers/metrics.controller.js` - Metrics and monitoring
-- `src/routes/health.routes.js` - Health check routes
-- `src/routes/metrics.routes.js` - Metrics endpoints
-- `src/services/metrics.service.js` - Metrics collection
+**Files created/updated**:
+- ✅ `src/controllers/health.controller.js` - Health check implementations
+- ✅ `src/middleware/metrics.middleware.js` - Metrics collection middleware
+- ✅ `src/routes/v1/health.js` - Health check routes
+- ✅ `src/middleware/auth.middleware.js` - Authentication middleware
+- ✅ `src/middleware/rateLimit.middleware.js` - Rate limiting middleware
+- ✅ `src/middleware/validation.middleware.js` - Request validation middleware
+- ✅ `src/middleware/logging.middleware.js` - Request logging middleware
+- ✅ `src/middleware/requestId.middleware.js` - Request ID middleware
+- ✅ `src/middleware/index.js` - Middleware exports
 
 **Reference files**:
 - `docs/project-structure.md` (lines 346-352) - Health controller endpoints
 - `docs/project-structure.md` (lines 49) - Metrics controller features
 - `docs/project-structure.md` (lines 55) - Metrics service features
+- `src/providers/openai/openai.adapter.js` - OpenAI provider for health checks
+- `src/providers/gemini/gemini.adapter.js` - Gemini provider for health checks
+- `src/config/index.js` - Configuration loader for health check settings
+- `src/utils/logger.js` - Logging utilities for health check reporting
+- `src/utils/errors.js` - Error classes for health check failures
+- `src/utils/constants.js` - Application constants for status codes
 
 **Dependencies**: TASK-005, TASK-007, TASK-008
 
-**Sub-tasks**:
-1. Implement basic health status endpoint
-2. Create Kubernetes readiness and liveness probes
-3. Add provider-specific health checks
-4. Implement metrics collection and reporting
-5. Set up performance monitoring and alerting
+**Sub-tasks**: ✅ ALL COMPLETED
+1. ✅ Implement basic health status endpoint
+2. ✅ Create Kubernetes readiness and liveness probes
+3. ✅ Add provider-specific health checks
+4. ✅ Implement metrics collection and reporting
+5. ✅ Set up performance monitoring and alerting
+
+**Completion Notes**: 
+- Complete OpenAI-compatible API implementation with all major endpoints
+- Full middleware pipeline: authentication, rate limiting, validation, logging, metrics
+- Comprehensive health check system with detailed provider status monitoring
+- Request validation using Joi schemas for all endpoints
+- Streaming support for chat completions with proper error handling
+- Audio processing endpoints for transcription, translation, and TTS
+- Models listing with detailed model information and capabilities
+- Production-ready error handling with standardized error responses
+- Metrics collection with request/response monitoring and performance tracking
+- Rate limiting with configurable per-endpoint limits
+- Complete documentation updated in README.md with API usage examples
+- All code follows ESLint standards and passes syntax validation
+- **OpenAI Responses API Integration**: Implemented config-based API selection in OpenAI adapter
+  - Added `useResponsesAPI` flag (defaults to true) for choosing between responses API and chat completions
+  - Automatic fallback from responses API to chat completions on failure
+  - Async response polling with exponential backoff for non-immediate responses
+  - Support for background processing mode with response ID return
+  - Environment variable override: `OPENAI_USE_RESPONSES_API=true/false`
+  - Configuration in `config/default.yaml` and environment variable support in config system
+  - Gemini provider unaffected - continues using native generateContent API
+- Ready for Phase 5: Advanced Features implementation
 
 ---
 
@@ -562,9 +607,9 @@ Phase 3 (Providers): ✅ COMPLETED
 TASK-004 + TASK-006 � TASK-007
 TASK-004 + TASK-006 � TASK-008
 
-Phase 4 (API Layer):
-TASK-005 + TASK-007 + TASK-008 � TASK-009
-TASK-005 + TASK-007 + TASK-008 � TASK-010
+Phase 4 (API Layer): ✅ COMPLETED
+TASK-005 + TASK-007 + TASK-008 � TASK-009 ✅ COMPLETED
+TASK-005 + TASK-007 + TASK-008 � TASK-010 ✅ COMPLETED
 
 Phase 5 (Advanced Features):
 TASK-005 � TASK-011

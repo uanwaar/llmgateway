@@ -37,6 +37,7 @@ const configSchema = Joi.object({
       baseUrl: Joi.string().uri().required(),
       timeout: Joi.number().positive().default(30000),
       retryCount: Joi.number().min(0).default(3),
+      useResponsesAPI: Joi.boolean().default(true),
     }),
     gemini: Joi.object({
       enabled: Joi.boolean().default(true),
@@ -144,6 +145,9 @@ class ConfigManager {
     // Provider API keys
     if (process.env.OPENAI_API_KEY) {
       this.config.providers.openai.apiKey = process.env.OPENAI_API_KEY;
+    }
+    if (process.env.OPENAI_USE_RESPONSES_API !== undefined) {
+      this.config.providers.openai.useResponsesAPI = process.env.OPENAI_USE_RESPONSES_API === 'true';
     }
     if (process.env.GEMINI_API_KEY) {
       this.config.providers.gemini.apiKey = process.env.GEMINI_API_KEY;
