@@ -12,6 +12,31 @@
 
 ---
 
+## OpenAI Models
+- GPT-4o → `gpt-4o`
+- GPT-4o Audio → `gpt-4o-audio`
+- GPT-4o Realtime → `gpt-4o-realtime`
+- GPT-4o Search Preview → `gpt-4o-search-preview`
+- GPT-4o Transcribe → `gpt-4o-transcribe`
+- GPT-4o mini → `gpt-4o-mini`
+- GPT-4o mini Audio → `gpt-4o-mini-audio`
+- GPT-4o mini Realtime → `gpt-4o-mini-realtime`
+- GPT-4o mini Search Preview → `gpt-4o-mini-search-preview`
+- GPT-4o mini Transcribe → `gpt-4o-mini-transcribe`
+- GPT-4o mini TTS → `gpt-4o-mini-tts`
+- GPT-4 Turbo → `gpt-4-turbo`
+- GPT-4.1 → `gpt-4.1`
+- GPT-4 → `gpt-4`
+- o3 → `o3`
+- o3-pro → `o3-pro`
+- o3-mini → `o3-mini`
+- o3-deep-research → `o3-deep-research`
+- o4-mini → `o4-mini`
+- o4-mini-deep-research → `o4-mini-deep-research`
+- o1-preview → `o1-preview`
+- o1-mini → `o1-mini`
+- Whisper → `whisper-1`
+
 ## Responses API
 
 ### Overview
@@ -131,47 +156,11 @@ POST /v1/responses
 | `frequency_penalty` | number | No | Penalty for frequency of tokens (-2.0 to 2.0) |
 | `presence_penalty` | number | No | Penalty for presence of tokens (-2.0 to 2.0) |
 
-### Available Models for Responses API
-
-#### Latest Models (2025)
-- **gpt-4.1** (gpt-4.1-2025-04-14): Next-generation GPT-4 with enhanced capabilities
-- **gpt-4.1-mini** (gpt-4.1-mini-2025-04-14): Efficient version of GPT-4.1
-- **gpt-4.1-nano**: Newest ultra-efficient model
-
-#### Core Models
-- **gpt-4o** (gpt-4o-2024-08-06): Latest GPT-4 Omni model with multimodal capabilities
-- **gpt-4o-audio-preview** (gpt-4o-audio-preview-2025-06-03): GPT-4o with audio processing
-- **gpt-4o-realtime-preview** (gpt-4o-realtime-preview-2025-06-03): Real-time conversation model
-- **gpt-4o-mini** (gpt-4o-mini-2024-07-18): Efficient GPT-4 Omni model for cost optimization
-- **gpt-4o-mini-audio-preview** (gpt-4o-mini-audio-preview-2024-12-17): Mini version with audio
-- **gpt-4o-mini-realtime-preview** (gpt-4o-mini-realtime-preview-2024-12-17): Mini real-time model
-
-#### Reasoning Models
-- **o3-mini** (o3-mini-2025-01-31): Advanced reasoning model with enhanced chain-of-thought
-
-#### Premium Models
-- **chatgpt-4o-latest**: ChatGPT-optimized version of GPT-4o
-- **gpt-4-turbo** (gpt-4-turbo-2024-04-09): High-performance GPT-4 variant
-- **gpt-4** (gpt-4-0613): Original GPT-4 model
-- **gpt-4-32k**: GPT-4 with extended 32k context window
-
-#### Legacy Models
-- **gpt-3.5-turbo** (gpt-3.5-turbo-0125): Fast and efficient for simpler tasks
-- **gpt-3.5-turbo-instruct**: Instruction-following variant of GPT-3.5
-
-#### Model Capabilities Summary
-
-| Model | Context Window | Multimodal | Audio | Reasoning | Use Case |
-|-------|---------------|------------|-------|-----------|----------|
-| gpt-4.1 | 128k | ✅ | ❌ | ✅ | Latest general-purpose |
-| gpt-4.1-mini | 128k | ✅ | ❌ | ✅ | Cost-efficient latest |
-| gpt-4o | 128k | ✅ | ❌ | ✅ | Multimodal tasks |
-| gpt-4o-audio-preview | 128k | ✅ | ✅ | ✅ | Audio processing |
-| gpt-4o-realtime-preview | 128k | ✅ | ✅ | ✅ | Real-time conversations |
-| gpt-4o-mini | 128k | ✅ | ❌ | ✅ | Budget multimodal |
-| o3-mini | 128k | ❌ | ❌ | ✅✅ | Complex reasoning |
-| gpt-4-turbo | 128k | ✅ | ❌ | ✅ | High performance |
-| gpt-3.5-turbo | 16k | ❌ | ❌ | ✅ | Simple tasks |
+### Available Models
+- **gpt-4o**: Latest GPT-4 Omni model with multimodal capabilities
+- **gpt-4o-mini**: Efficient GPT-4 Omni model for cost optimization
+- **o3**: Advanced reasoning model with enhanced chain-of-thought
+- **o3-mini**: Efficient reasoning model with focused capabilities
 
 ### Built-in Tools
 
@@ -1085,91 +1074,26 @@ client = OpenAI(api_key="sk-your-api-key-here")
 
 ## Pricing (2025)
 
-### Responses API - Text Models
-
-#### Latest Models (Flex Processing)
-- **gpt-4.1**
-  - Input: $2.00 per 1M tokens
-  - Cached Input: $0.50 per 1M tokens
-  - Output: $8.00 per 1M tokens
-
-- **gpt-4.1-mini**
-  - Input: $0.40 per 1M tokens
-  - Output: $1.60 per 1M tokens
-
-#### Core Models
-- **gpt-4o**
-  - Input: $2.50 per 1M tokens
-  - Output: $10.00 per 1M tokens
-
-- **gpt-4o-mini**
-  - Input: $0.15 per 1M tokens
-  - Output: $0.60 per 1M tokens
-
-- **o3-mini**
-  - Input: Variable (reasoning model)
-  - Output: Variable based on reasoning complexity
-
-#### Premium Models
-- **chatgpt-4o-latest**
-  - Input: $5.00 per 1M tokens
-  - Output: $15.00 per 1M tokens
-
-- **gpt-4-turbo**
-  - Input: $10.00 per 1M tokens
-  - Output: $30.00 per 1M tokens
-
-- **gpt-4**
-  - Input: $30.00 per 1M tokens
-  - Output: $60.00 per 1M tokens
-
-- **gpt-4-32k**
-  - Input: $60.00 per 1M tokens
-  - Output: $120.00 per 1M tokens
-
-#### Legacy Models
-- **gpt-3.5-turbo**
-  - Input: $0.50 per 1M tokens
-  - Output: $1.50 per 1M tokens
-
-- **gpt-3.5-turbo-instruct**
-  - Input: $1.50 per 1M tokens
-  - Output: $2.00 per 1M tokens
+### Responses API
+- Input tokens: $2.50 per 1M tokens
+- Output tokens: $10.00 per 1M tokens
+- Reasoning tokens: $10.00 per 1M tokens
+- Image input: $10.00 per 1M tokens
+- Image generation: $40.00 per 1M tokens
+- Cached inputs: 75% discount
+- Streaming: No additional cost
 
 ### Audio API
+#### Transcription
+- Whisper-1: $0.006 per minute
+- GPT-4o-transcribe: $0.012 per minute
+- GPT-4o-mini-transcribe: $0.008 per minute
+- Streaming: No additional cost
 
-#### Speech-to-Text (Transcription)
-- **Whisper**: $0.006 per minute
-- **Audio tokens**: $10.00 per 1M tokens
+#### Text-to-Speech
+- TTS-1: $15.00 per 1M characters
+- TTS-1-HD: $30.00 per 1M characters
+- GPT-4o-mini-TTS: $25.00 per 1M characters
+- Streaming: No additional cost
 
-#### Text-to-Speech (TTS)
-- **TTS (Standard)**: $0.015 per minute
-- **TTS HD (High Quality)**: $0.030 per minute
-- **gpt-4o-mini-tts**: $0.60 per 1M characters
-
-### Additional Services
-
-#### Tools and Function Calls
-- **File Search Tool Call**: $2.50 per 1k calls (Responses API only)
-
-#### Image Generation (DALL-E)
-- **DALL-E 3 Standard**
-  - 1024×1024: $0.04 per image
-  - 1024×1792, 1792×1024: $0.08 per image
-- **DALL-E 3 HD**
-  - 1024×1024: $0.08 per image
-  - 1024×1792, 1792×1024: $0.12 per image
-
-#### Embeddings
-- **text-embedding-3-small**: $0.02 per 1M tokens
-- **text-embedding-3-large**: $0.13 per 1M tokens
-- **text-embedding-ada-002**: $0.10 per 1M tokens
-
-#### Moderation
-- **omni-moderation-latest**: Free
-- **text-moderation-latest**: Free
-
-**Notes:**
-- Streaming: No additional cost for all APIs
-- Cached inputs: Available at reduced rates for supported models
-- Prices subject to change. Check OpenAI pricing page for current rates.
+*Prices subject to change. Check OpenAI pricing page for current rates.*
