@@ -151,7 +151,7 @@ class OpenAIAdapter extends BaseAdapter {
           throw new ProviderError(
             `Response ${response.status}: ${response.error?.message || 'Unknown error'}`,
             'RESPONSE_FAILED',
-            'openai'
+            'openai',
           );
         }
         
@@ -168,7 +168,7 @@ class OpenAIAdapter extends BaseAdapter {
     throw new ProviderError(
       'Response polling timed out',
       'POLLING_TIMEOUT',
-      'openai'
+      'openai',
     );
   }
 
@@ -457,6 +457,10 @@ class OpenAIAdapter extends BaseAdapter {
       type: model.type,
       capabilities: model.capabilities,
     }));
+  }
+
+  getSupportedModels() {
+    return this.getAvailableModels();
   }
 
   getSupportedFeatures() {

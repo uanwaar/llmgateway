@@ -12,7 +12,8 @@
       "Bash(node:*)",
       "Bash(sed:*)",
       "Bash(npm run:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(tskill:*)"
     ],
     "deny": []
   }

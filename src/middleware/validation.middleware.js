@@ -161,7 +161,8 @@ const schemas = {
       model: Joi.string().default('whisper-1'),
       language: Joi.string().length(2), // ISO-639-1 language code
       prompt: Joi.string(),
-      response_format: Joi.string().valid('json', 'text', 'srt', 'verbose_json', 'vtt').default('json'),
+      response_format: Joi.string()
+        .valid('json', 'text', 'srt', 'verbose_json', 'vtt').default('json'),
       temperature: Joi.number().min(0).max(1).default(0),
     }),
   },
@@ -171,8 +172,10 @@ const schemas = {
     body: Joi.object({
       model: Joi.string().valid('tts-1', 'tts-1-hd').required(),
       input: Joi.string().max(4096).required(),
-      voice: Joi.string().valid('alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer').required(),
-      response_format: Joi.string().valid('mp3', 'opus', 'aac', 'flac', 'wav', 'pcm').default('mp3'),
+      voice: Joi.string()
+        .valid('alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer').required(),
+      response_format: Joi.string()
+        .valid('mp3', 'opus', 'aac', 'flac', 'wav', 'pcm').default('mp3'),
       speed: Joi.number().min(0.25).max(4.0).default(1.0),
     }),
   },

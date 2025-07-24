@@ -27,7 +27,8 @@ const upload = multer({
       'audio/mp4', 'audio/webm', 'audio/flac', 'audio/ogg',
     ];
     
-    if (allowedTypes.includes(file.mimetype) || file.originalname.match(/\.(mp3|wav|m4a|mp4|webm|flac|ogg)$/i)) {
+    if (allowedTypes.includes(file.mimetype) || 
+        file.originalname.match(/\.(mp3|wav|m4a|mp4|webm|flac|ogg)$/i)) {
       cb(null, true);
     } else {
       cb(new Error('Invalid file type. Only audio files are allowed.'), false);

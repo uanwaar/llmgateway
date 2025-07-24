@@ -15,7 +15,8 @@ const logger = require('../utils/logger');
 function createRateLimiter(options = {}) {
   const rateLimitConfig = {
     windowMs: options.windowMs || config.server.rateLimit?.windowMs || 15 * 60 * 1000, // 15 minutes
-    max: options.max || config.server.rateLimit?.max || 100, // limit each IP to 100 requests per windowMs
+    max: options.max || config.server.rateLimit?.max || 100, 
+    // limit each IP to 100 requests per windowMs
     message: options.message || 'Too many requests, please try again later',
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers

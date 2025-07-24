@@ -8,6 +8,9 @@
  * - Secret management integration
  */
 
+// Load environment variables FIRST before anything else
+require('dotenv').config();
+
 const fs = require('fs');
 const path = require('path');
 const yaml = require('yaml');
@@ -35,15 +38,19 @@ const configSchema = Joi.object({
     openai: Joi.object({
       enabled: Joi.boolean().default(true),
       baseUrl: Joi.string().uri().required(),
+      apiKey: Joi.string().optional(),
       timeout: Joi.number().positive().default(30000),
       retryCount: Joi.number().min(0).default(3),
+      retryDelay: Joi.number().min(0).default(1000),
       useResponsesAPI: Joi.boolean().default(true),
     }),
     gemini: Joi.object({
       enabled: Joi.boolean().default(true),
       baseUrl: Joi.string().uri().required(),
+      apiKey: Joi.string().optional(),
       timeout: Joi.number().positive().default(30000),
       retryCount: Joi.number().min(0).default(3),
+      retryDelay: Joi.number().min(0).default(1000),
     }),
   }).required(),
   
@@ -147,7 +154,8 @@ class ConfigManager {
       this.config.providers.openai.apiKey = process.env.OPENAI_API_KEY;
     }
     if (process.env.OPENAI_USE_RESPONSES_API !== undefined) {
-      this.config.providers.openai.useResponsesAPI = process.env.OPENAI_USE_RESPONSES_API === 'true';
+      this.config.providers.openai.useResponsesAPI = 
+        process.env.OPENAI_USE_RESPONSES_API === 'true';
     }
     if (process.env.GEMINI_API_KEY) {
       this.config.providers.gemini.apiKey = process.env.GEMINI_API_KEY;

@@ -61,6 +61,7 @@ llm-gateway/
 │   │   ├── base/                       # Base provider interface
 │   │   │   ├── provider.interface.js   # Provider contract definition
 │   │   │   ├── adapter.base.js         # Base adapter implementation
+│   │   │   ├── registry.js             # Provider registry and management
 │   │   │   └── response.transformer.js # Response transformation utilities
 │   │   │
 │   │   ├── openai/                     # OpenAI provider implementation
@@ -226,6 +227,8 @@ llm-gateway/
 // Responsibilities:
 // - Environment setup and validation
 // - Configuration loading
+// - Gateway service initialization
+// - Provider registration and health monitoring startup
 // - Graceful shutdown handling
 // - Process signal handling
 ```
@@ -276,22 +279,41 @@ llm-gateway/
 
 #### `src/services/gateway.service.js`
 ```javascript
-// Main gateway orchestration service
+// Main gateway orchestration service (650+ lines)
 // Responsibilities:
-// - Request routing and delegation
-// - Provider failover handling
+// - Provider initialization and direct management via internal Maps
+// - Model-to-provider mapping for fast lookups
+// - Request routing and delegation to providers
+// - Provider failover handling with circuit breakers
 // - Response aggregation and formatting
 // - Cross-cutting concerns coordination
+// - Health status management with registry callbacks
+// - Exponential backoff retry mechanisms
+// Features:
+// - createChatCompletion() - Chat completion orchestration
+// - createEmbeddings() - Embeddings request processing  
+// - createTranscription() - Audio transcription handling
+// - executeWithFailover() - Automatic failover support
+// - getAvailableModels() - Model discovery from providers
+// - getModelInfo() - Model metadata retrieval
+// - getProviderForModel() - Direct provider lookup
+// - Circuit breaker pattern implementation
+// Internal Maps:
+// - providers Map - Direct provider storage
+// - modelToProvider Map - Fast model-to-provider mapping
+// - providerHealthStatus Map - Health status tracking
 ```
 
 #### `src/services/router.service.js`
 ```javascript
-// Intelligent request routing logic
+// Intelligent request routing logic (426 lines)
 // Features:
-// - Provider selection algorithms
-// - Load balancing strategies
-// - Health-based routing
-// - Cost optimization routing
+// - 5 routing strategies: cost_optimized, performance, round_robin, health_based, weighted
+// - Provider selection algorithms with sophisticated criteria
+// - Load balancing strategies with health monitoring
+// - Cost optimization routing based on token pricing
+// - Performance-based routing with response time metrics
+// - Health-based routing with provider status monitoring
 ```
 
 #### `src/services/cache.service.js`
@@ -304,7 +326,28 @@ llm-gateway/
 // - Memory and Redis backends
 ```
 
-### Provider Adapters
+### Provider Management
+
+#### `src/providers/base/registry.js`
+```javascript
+// Provider registry focused on health monitoring (480+ lines)
+// REFACTORED: No longer involved in API request flows
+// Core functionality:
+// - Provider registration for health monitoring only
+// - Health monitoring with 30-second interval checks
+// - Health status callbacks to Gateway Service
+// - Provider lifecycle management for cleanup
+// Key methods:
+// - register() - Register providers for health monitoring
+// - performHealthChecks() - Monitor provider health
+// - setHealthStatusCallback() - Set callback for health updates
+// - getRegistryStatus() - Health status reporting
+// Removed methods (moved to Gateway Service):
+// - getProviderForModel() - Now in Gateway Service
+// - getEligibleProviders() - Logic moved to Gateway Service  
+// - getAvailableModels() - Now in Gateway Service
+// - getModelInfo() - Now in Gateway Service
+```
 
 #### `src/providers/base/provider.interface.js`
 ```javascript
@@ -314,6 +357,7 @@ llm-gateway/
 // - Response normalization
 // - Error handling patterns
 // - Streaming support
+// - Health check implementations
 ```
 
 #### `src/providers/openai/openai.adapter.js`
@@ -365,19 +409,23 @@ llm-gateway/
 // Chat completions endpoint handler
 // Responsibilities:
 // - Request validation and sanitization
-// - Provider routing and delegation
-// - Response formatting and streaming
-// - Error handling and fallback
+// - Delegates to gatewayService.createChatCompletion()
+// - Model listing via gatewayService.getAvailableModels()
+// - Streaming response handling with SSE
+// - Error handling and unified response formatting
+// Architecture: Uses Gateway Service for all operations (no direct registry access)
 ```
 
 #### `src/controllers/audio.controller.js`
 ```javascript
 // Audio processing endpoint handler
 // Responsibilities:
-// - Audio transcription request handling
-// - Text-to-speech request processing
+// - Audio transcription via gatewayService.createTranscription()
+// - Text-to-speech via gatewayService.getProviderForModel() + direct provider call
+// - Model validation via gatewayService.getModelInfo()
 // - File upload validation and processing
 // - Audio format conversion and validation
+// Architecture: Uses Gateway Service for provider lookup (no direct registry access)
 ```
 
 #### `src/controllers/health.controller.js`
@@ -443,6 +491,34 @@ llm-gateway/
 // - AuthenticationError - Auth failures
 // - RateLimitError - Rate limiting violations
 ```
+
+## Architecture Summary
+
+### Refactoring Summary
+
+The project has been refactored to eliminate the registry from API call flows while maintaining health monitoring:
+
+1. **Controllers Layer**: Handle HTTP requests and responses
+2. **Gateway Service Layer**: Direct provider management, orchestration, failover and circuit breakers
+3. **Router Service Layer**: Intelligent provider selection with 5 routing strategies
+4. **Provider Registry Layer**: Background health monitoring only (no API involvement)
+5. **Provider Adapters**: Interface with external LLM APIs
+
+### Key Improvements
+- ✅ **Registry Eliminated from API Flows**: Direct provider access via Gateway Service Maps
+- ✅ **Improved Performance**: Direct Map lookups instead of method calls through registry
+- ✅ **Service Layer Architecture**: Controllers use gateway service exclusively
+- ✅ **Circuit Breaker Pattern**: Automatic provider failure detection and recovery
+- ✅ **Intelligent Routing**: 5 routing strategies (cost, performance, health, round-robin, weighted)
+- ✅ **Background Health Monitoring**: Registry runs health checks and notifies Gateway Service
+- ✅ **Clear Separation of Concerns**: Registry focused solely on health monitoring
+- ✅ **Failover Support**: Exponential backoff retry with circuit breaker protection
+
+### Architecture Changes
+- **Provider Registry**: Refactored to health monitoring only, no longer in request path
+- **Gateway Service**: Now manages providers directly with internal Maps for fast access
+- **Controllers**: All registry dependencies removed, use Gateway Service methods only
+- **Health Monitoring**: Asynchronous callback system from registry to Gateway Service
 
 ## Development Workflow Files
 

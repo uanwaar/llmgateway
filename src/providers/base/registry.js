@@ -6,6 +6,7 @@ class ProviderRegistry {
     this.providers = new Map();
     this.healthCheckInterval = null;
     this.healthCheckIntervalMs = 30000; // 30 seconds
+    this.healthStatusCallback = null; // Callback to notify gateway service
   }
 
   register(name, adapter) {
@@ -123,8 +124,87 @@ class ProviderRegistry {
     return this.selectBestProvider(availableProviders, criteria);
   }
 
+  /**
+   * Get all available models from registered providers
+   */
+  getAvailableModels() {
+    const models = [];
+    
+    for (const [name, info] of this.providers) {
+      if (info.healthStatus === 'healthy' && info.adapter.isInitialized) {
+        try {
+          const providerModels = info.adapter.getSupportedModels();
+          for (const model of providerModels) {
+            models.push({
+              id: model.id,
+              provider: name,
+              capabilities: model.capabilities || [],
+              maxTokens: model.maxTokens,
+              multimodal: model.multimodal || false,
+              type: model.type || 'completion',
+            });
+          }
+        } catch (error) {
+          logger.warn(`Failed to get models from provider ${name}`, {
+            error: error.message,
+          });
+        }
+      }
+    }
+    
+    return models;
+  }
+
+  /**
+   * Get model information by ID
+   */
+  getModelInfo(modelId) {
+    for (const [name, info] of this.providers) {
+      if (info.healthStatus === 'healthy' && info.adapter.isInitialized) {
+        try {
+          const models = info.adapter.getSupportedModels();
+          const model = models.find(m => m.id === modelId);
+          if (model) {
+            return {
+              ...model,
+              provider: name,
+            };
+          }
+        } catch (error) {
+          logger.warn(`Failed to get model info from provider ${name}`, {
+            error: error.message,
+          });
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  /**
+   * Get the best provider for a specific model
+   */
+  getProviderForModel(modelId) {
+    const modelInfo = this.getModelInfo(modelId);
+    if (!modelInfo) {
+      return null;
+    }
+    
+    return this.get(modelInfo.provider);
+  }
+
   getEligibleProviders(criteria) {
     const eligible = [];
+
+    // If a specific model is required, first find which provider supports it
+    let targetProviderName = null;
+    if (criteria.model) {
+      const modelInfo = this.getModelInfo(criteria.model);
+      if (!modelInfo) {
+        return []; // Model not found in any provider
+      }
+      targetProviderName = modelInfo.provider;
+    }
 
     for (const [name, info] of this.providers) {
       // Skip if provider is excluded
@@ -142,12 +222,9 @@ class ProviderRegistry {
         continue;
       }
 
-      // Check if provider supports required model
-      if (criteria.model) {
-        const modelInfo = info.adapter.getModelInfo(criteria.model);
-        if (!modelInfo) {
-          continue;
-        }
+      // If a model is specified, only include the provider that supports it
+      if (targetProviderName && name !== targetProviderName) {
+        continue;
       }
 
       // Check if provider supports required feature
@@ -308,6 +385,13 @@ class ProviderRegistry {
     }
   }
 
+  /**
+   * Set callback for health status updates
+   */
+  setHealthStatusCallback(callback) {
+    this.healthStatusCallback = callback;
+  }
+
   async performHealthChecks() {
     const healthPromises = [];
 
@@ -317,11 +401,23 @@ class ProviderRegistry {
           .then(result => {
             info.lastHealthCheck = new Date();
             info.healthStatus = result.status;
+            
+            // Notify gateway service of health status change
+            if (this.healthStatusCallback) {
+              this.healthStatusCallback(name, result.status);
+            }
+            
             return { name, result };
           })
           .catch(error => {
             info.lastHealthCheck = new Date();
             info.healthStatus = 'unhealthy';
+            
+            // Notify gateway service of health status change
+            if (this.healthStatusCallback) {
+              this.healthStatusCallback(name, 'unhealthy');
+            }
+            
             return { name, error: error.message };
           }),
       );

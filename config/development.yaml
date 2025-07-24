@@ -18,6 +18,7 @@ providers:
   openai:
     timeout: 10000  # Shorter timeout for development
   gemini:
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta"
     timeout: 10000
 
 metrics:

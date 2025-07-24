@@ -209,7 +209,7 @@ providers:
       
   gemini:
     enabled: true
-    baseUrl: "https://generativelanguage.googleapis.com/v1"
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta"
     timeout: 30000
     retryCount: 3
     retryDelay: 1000

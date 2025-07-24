@@ -4,7 +4,7 @@
  * Handles OpenAI-compatible models endpoints
  */
 
-const ProviderRegistry = require('../providers/base/registry');
+const gatewayService = require('../services/gateway.service');
 const { ModelNotFoundError } = require('../utils/errors');
 const logger = require('../utils/logger');
 
@@ -18,7 +18,7 @@ class ModelsController {
         requestId: req.id,
       });
       
-      const models = ProviderRegistry.getAvailableModels().map(model => ({
+      const models = gatewayService.getAvailableModels().map(model => ({
         id: model.id,
         object: 'model',
         created: Math.floor(Date.now() / 1000),
@@ -82,10 +82,10 @@ class ModelsController {
         model,
       });
       
-      const modelInfo = ProviderRegistry.getModelInfo(model);
+      const modelInfo = gatewayService.getModelInfo(model);
       if (!modelInfo) {
         throw new ModelNotFoundError(model, {
-          availableModels: ProviderRegistry.getAvailableModels().map(m => m.id),
+          availableModels: gatewayService.getAvailableModels().map(m => m.id),
           requestedModel: model,
         });
       }
@@ -158,7 +158,7 @@ class ModelsController {
         capability,
       });
       
-      const models = ProviderRegistry.getAvailableModels()
+      const models = gatewayService.getAvailableModels()
         .filter(model => model.capabilities.includes(capability))
         .map(model => ({
           id: model.id,

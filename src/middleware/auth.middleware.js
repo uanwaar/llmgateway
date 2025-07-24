@@ -1,75 +1,78 @@
 /**
- * Authentication middleware
+ * Authentication and authorization middleware
  * 
- * Validates API keys and authorization headers
+ * Features:
+ * - API key validation
+ * - Client vs gateway key handling
+ * - Rate limiting per key
+ * - Usage tracking and quotas
  */
 
-const config = require('../config');
+const authService = require('../services/auth.service');
 const { UnauthorizedError, ForbiddenError } = require('../utils/errors');
 const logger = require('../utils/logger');
 
 /**
- * Authentication middleware
+ * Authentication middleware with advanced features
  */
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   try {
     // Skip auth for health check endpoints
     if (req.path.startsWith('/health')) {
       return next();
     }
     
-    // Get auth header
-    const authHeader = req.get('Authorization');
-    const apiKey = req.get('X-API-Key');
+    // Extract API key from various headers
+    const apiKey = extractApiKey(req);
     
-    let token;
-    
-    // Extract token from Authorization header (Bearer token)
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.substring(7);
-    } else if (apiKey) {
-      token = apiKey;
-    }
-    
-    // Check if token is provided
-    if (!token) {
-      throw new UnauthorizedError('Missing API key or authorization token', {
-        provided: { authHeader: !!authHeader, apiKey: !!apiKey },
-        expected: 'Bearer token in Authorization header or X-API-Key header',
-      });
-    }
-    
-    // Validate token against configured API keys
-    const validApiKeys = config.auth.apiKeys || [];
-    const isValidKey = validApiKeys.includes(token);
-    
-    if (!isValidKey) {
-      logger.warn('Invalid API key attempt', {
-        requestId: req.id,
-        ip: req.ip,
-        userAgent: req.get('User-Agent'),
-        keyPrefix: `${token.substring(0, 8)}...`,
-      });
-      
-      throw new ForbiddenError('Invalid API key', {
-        keyPrefix: `${token.substring(0, 8)}...`,
-      });
-    }
-    
-    // Add auth info to request
-    req.auth = {
-      apiKey: token,
-      keyPrefix: `${token.substring(0, 8)}...`,
-      authenticated: true,
+    // Create authentication context
+    const authContext = {
+      requestId: req.id,
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      endpoint: req.path,
+      method: req.method,
     };
+    
+    // Validate API key using auth service
+    const keyInfo = await authService.validateApiKey(apiKey, authContext);
+    
+    // Add comprehensive auth info to request
+    req.auth = {
+      authenticated: !!keyInfo,
+      keyInfo,
+      apiKey: keyInfo ? undefined : apiKey, // Don't expose validated keys
+      keyId: keyInfo?.id,
+      keyType: keyInfo?.type,
+      provider: keyInfo?.provider,
+      quotas: keyInfo?.quotas,
+      metadata: keyInfo?.metadata,
+    };
+    
+    // Record token usage for analytics
+    if (keyInfo) {
+      recordTokenUsage(req, keyInfo);
+    }
     
     logger.debug('Request authenticated', {
       requestId: req.id,
-      keyPrefix: req.auth.keyPrefix,
+      authenticated: req.auth.authenticated,
+      keyId: req.auth.keyId,
+      keyType: req.auth.keyType,
+      provider: req.auth.provider,
     });
     
     next();
   } catch (error) {
+    // Log authentication failures
+    logger.warn('Authentication failed', {
+      requestId: req.id,
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      endpoint: req.path,
+      error: error.message,
+    });
+    
     next(error);
   }
 }
@@ -77,31 +80,41 @@ function authMiddleware(req, res, next) {
 /**
  * Optional auth middleware - doesn't throw if no auth provided
  */
-function optionalAuthMiddleware(req, res, next) {
+async function optionalAuthMiddleware(req, res, next) {
   try {
-    const authHeader = req.get('Authorization');
-    const apiKey = req.get('X-API-Key');
+    const apiKey = extractApiKey(req);
     
-    let token;
-    
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.substring(7);
-    } else if (apiKey) {
-      token = apiKey;
-    }
-    
-    if (token) {
-      const validApiKeys = config.auth.apiKeys || [];
-      const isValidKey = validApiKeys.includes(token);
+    if (apiKey) {
+      const authContext = {
+        requestId: req.id,
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        endpoint: req.path,
+        method: req.method,
+      };
       
-      if (isValidKey) {
+      try {
+        const keyInfo = await authService.validateApiKey(apiKey, authContext);
+        
         req.auth = {
-          apiKey: token,
-          keyPrefix: `${token.substring(0, 8)}...`,
-          authenticated: true,
+          authenticated: !!keyInfo,
+          keyInfo,
+          keyId: keyInfo?.id,
+          keyType: keyInfo?.type,
+          provider: keyInfo?.provider,
+          quotas: keyInfo?.quotas,
         };
-      } else {
-        req.auth = { authenticated: false, reason: 'invalid_key' };
+        
+        if (keyInfo) {
+          recordTokenUsage(req, keyInfo);
+        }
+      } catch (error) {
+        // For optional auth, don't throw errors, just mark as unauthenticated
+        req.auth = { 
+          authenticated: false, 
+          reason: error.message,
+          error: error.code,
+        };
       }
     } else {
       req.auth = { authenticated: false, reason: 'no_key' };
@@ -113,5 +126,159 @@ function optionalAuthMiddleware(req, res, next) {
   }
 }
 
+/**
+ * Extract API key from request headers
+ */
+function extractApiKey(req) {
+  // Check Authorization header (Bearer token)
+  const authHeader = req.get('Authorization');
+  if (authHeader) {
+    if (authHeader.startsWith('Bearer ')) {
+      return authHeader.substring(7);
+    }
+    // Also support "Authorization: sk-..." for OpenAI compatibility
+    if (authHeader.startsWith('sk-') || authHeader.startsWith('AIza')) {
+      return authHeader;
+    }
+  }
+  
+  // Check X-API-Key header
+  const apiKeyHeader = req.get('X-API-Key');
+  if (apiKeyHeader) {
+    return apiKeyHeader;
+  }
+  
+  // Check OpenAI-specific header
+  const openaiHeader = req.get('OpenAI-API-Key');
+  if (openaiHeader) {
+    return openaiHeader;
+  }
+  
+  return null;
+}
+
+/**
+ * Record token usage for analytics and billing
+ */
+function recordTokenUsage(req, keyInfo) {
+  // This will be enhanced when we process the response
+  // For now, just record the request
+  req.tokenUsage = {
+    keyId: keyInfo.id,
+    keyType: keyInfo.type,
+    provider: keyInfo.provider,
+    startTime: Date.now(),
+    endpoint: req.path,
+    method: req.method,
+  };
+}
+
+/**
+ * Middleware to record response token usage
+ */
+function recordResponseUsage(tokens = 0) {
+  return (req, res, next) => {
+    if (req.tokenUsage && req.auth?.keyInfo) {
+      const context = {
+        requestId: req.id,
+        endpoint: req.path,
+        method: req.method,
+      };
+      
+      // Record the actual token usage
+      authService.recordUsage(req.auth.keyInfo, context, tokens);
+      
+      logger.debug('Token usage recorded', {
+        requestId: req.id,
+        keyId: req.auth.keyInfo.id,
+        tokens,
+        responseTime: Date.now() - req.tokenUsage.startTime,
+      });
+    }
+    
+    next();
+  };
+}
+
+/**
+ * Rate limiting middleware per API key
+ */
+async function rateLimitByKey(req, res, next) {
+  try {
+    if (!req.auth?.keyInfo) {
+      return next(); // Skip rate limiting if no valid key
+    }
+    
+    // Rate limiting is already handled in authService.validateApiKey
+    
+    // Rate limiting is already handled in authService.validateApiKey
+    // This middleware is for additional per-endpoint rate limiting
+    const keyInfo = req.auth.keyInfo;
+    const endpointLimits = keyInfo.rateLimits?.endpoints;
+    
+    if (endpointLimits && endpointLimits[req.path]) {
+      // Custom rate limiting logic for specific endpoints
+      // This would be implemented based on specific requirements
+      logger.debug('Applying endpoint-specific rate limiting', {
+        requestId: req.id,
+        keyId: keyInfo.id,
+        endpoint: req.path,
+        limits: endpointLimits[req.path],
+      });
+    }
+    
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Middleware to require specific key types
+ */
+function requireKeyType(allowedTypes) {
+  return (req, res, next) => {
+    if (!req.auth?.authenticated) {
+      return next(new UnauthorizedError('Authentication required'));
+    }
+    
+    const keyType = req.auth.keyType;
+    if (!allowedTypes.includes(keyType)) {
+      return next(new ForbiddenError(
+        `This endpoint requires ${allowedTypes.join(' or ')} key type, got ${keyType}`,
+        { allowedTypes, providedType: keyType },
+      ));
+    }
+    
+    next();
+  };
+}
+
+/**
+ * Middleware to require specific provider keys
+ */
+function requireProvider(allowedProviders) {
+  return (req, res, next) => {
+    if (!req.auth?.authenticated) {
+      return next(new UnauthorizedError('Authentication required'));
+    }
+    
+    const provider = req.auth.provider;
+    if (!allowedProviders.includes(provider)) {
+      return next(new ForbiddenError(
+        `This endpoint requires ${allowedProviders.join(' or ')} provider, got ${provider}`,
+        { allowedProviders, providedProvider: provider },
+      ));
+    }
+    
+    next();
+  };
+}
+
 module.exports = authMiddleware;
 module.exports.optional = optionalAuthMiddleware;
+module.exports.extractApiKey = extractApiKey;
+module.exports.recordResponseUsage = recordResponseUsage;
+module.exports.rateLimitByKey = rateLimitByKey;
+module.exports.requireKeyType = requireKeyType;
+module.exports.requireProvider = requireProvider;

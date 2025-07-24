@@ -10,13 +10,15 @@
  */
 
 const dotenv = require('dotenv');
-const config = require('./config');
+
+// Load environment variables FIRST
+dotenv.config();
+
+const { manager: config } = require('./config');
 const logger = require('./utils/logger');
 const app = require('./app');
 const server = require('./server');
-
-// Load environment variables
-dotenv.config();
+const gatewayService = require('./services/gateway.service');
 
 /**
  * Initialize the application
@@ -31,6 +33,9 @@ async function initialize() {
       nodeVersion: process.version,
       environment: process.env.NODE_ENV || 'development',
     });
+
+    // Initialize gateway service and providers
+    await gatewayService.initialize();
 
     // Start the server
     await server.start(app);

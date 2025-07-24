@@ -48,7 +48,7 @@ class BaseAdapter extends ProviderInterface {
     if (!this.config) {
       throw new Error('Configuration is required');
     }
-    if (!this.config.apiKey && !this.config.endpoint) {
+    if (!this.config.apiKey && !this.config.endpoint && !this.config.baseUrl) {
       throw new Error('Either apiKey or endpoint must be provided');
     }
   }

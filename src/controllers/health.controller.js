@@ -4,7 +4,7 @@
  * Monitoring and health check endpoints
  */
 
-const ProviderRegistry = require('../providers/base/registry');
+const { registry } = require('../providers/base/registry');
 const { getMetrics } = require('../middleware/metrics.middleware');
 const config = require('../config');
 const logger = require('../utils/logger');
@@ -61,7 +61,8 @@ class HealthController {
       // Application metrics
       const appMetrics = getMetrics();
       
-      const overallStatus = providerStatuses.every(p => p.status === 'healthy') ? 'healthy' : 'degraded';
+      const overallStatus = providerStatuses.every(p => p.status === 'healthy') 
+        ? 'healthy' : 'degraded';
       
       const detailedHealth = {
         status: overallStatus,
@@ -209,7 +210,7 @@ class HealthController {
    * Check provider health status
    */
   static async _checkProviders() {
-    const providers = ProviderRegistry.getAvailableProviders();
+    const providers = Object.values(registry.getAll());
     const providerStatuses = [];
     
     for (const provider of providers) {

@@ -6,10 +6,10 @@ const { ProviderError, NetworkError, RateLimitError } = require('../../utils/err
 class OpenAIClient {
   constructor(config) {
     this.config = config;
-    this.baseURL = config.endpoint || 'https://api.openai.com/v1';
+    this.baseURL = config.baseUrl || config.endpoint || 'https://api.openai.com/v1';
     this.apiKey = config.apiKey;
     this.timeout = config.timeout || 60000;
-    this.retryAttempts = config.retryAttempts || 3;
+    this.retryAttempts = config.retryCount || config.retryAttempts || 3;
     this.retryDelay = config.retryDelay || 1000;
 
     if (!this.apiKey) {

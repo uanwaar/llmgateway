@@ -8,7 +8,7 @@ The LLM Gateway is an open-source, self-hosted intelligent proxy service that pr
 
 ### Core Components
 
-Based on the PRD, the system will implement these key architectural components:
+The system implements a sophisticated four-layer architecture with proper separation of concerns:
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
@@ -18,12 +18,18 @@ Based on the PRD, the system will implement these key architectural components:
           └──────────────────────┼──────────────────────┘
                                  │
                     ┌─────────────▼─────────────┐
-                    │    LLM Gateway API        │
-                    │  (Unified Interface)      │
+                    │      Controllers          │
+                    │  (Request Handlers)       │
                     └─────────────┬─────────────┘
                                   │
                     ┌─────────────▼─────────────┐
-                    │     Router Service        │
+                    │   Gateway Service         │
+                    │ (Orchestration & Provider │
+                    │     Management)           │
+                    └─────────────┬─────────────┘
+                                  │
+                    ┌─────────────▼─────────────┐
+                    │   Router Service          │
                     │ (Intelligent Routing)     │
                     └─────────────┬─────────────┘
                                   │
@@ -36,21 +42,45 @@ Based on the PRD, the system will implement these key architectural components:
 ┌─────────▼─────────┐    ┌─────────▼─────────┐    ┌─────────▼─────────┐
 │    OpenAI API     │    │   Gemini API      │    │   Other APIs      │
 └───────────────────┘    └───────────────────┘    └───────────────────┘
+
+                    ┌─────────────────────────────┐
+                    │   Provider Registry         │
+                    │ (Health Monitoring Only)    │
+                    │                             │
+                    │ Runs background health      │
+                    │ checks and notifies         │
+                    │ Gateway Service             │
+                    └─────────────────────────────┘
 ```
 
 ### Data Flow
 
 1. **Request Flow**:
    - Client sends unified request to Gateway API
-   - Router Service analyzes request and selects appropriate provider
+   - Controllers receive and validate the request
+   - Gateway Service orchestrates the request processing
+   - Gateway Service uses internal model-to-provider mapping for direct provider lookup
+   - Router Service applies intelligent routing strategy to select best provider
    - Provider Adapter translates request to provider-specific format
    - Request is sent to the selected LLM provider
 
 2. **Response Flow**:
    - Provider returns response in native format
    - Provider Adapter translates response to unified format
-   - Gateway adds metadata (cost, timing, provider info)
-   - Unified response returned to client
+   - Gateway Service adds metadata (cost, timing, provider info)
+   - Controllers format and return unified response to client
+
+3. **Health Monitoring Flow**:
+   - Provider Registry runs background health checks every 30 seconds
+   - Health status changes are immediately reported to Gateway Service via callback
+   - Gateway Service updates internal provider health status
+   - Circuit breakers prevent requests to unhealthy providers
+
+4. **Failover Flow**:
+   - Gateway Service monitors provider health via circuit breakers
+   - On provider failure, automatic retry with exponential backoff
+   - Circuit breaker opens after threshold failures, preventing further requests
+   - Health monitoring enables automatic recovery when provider becomes healthy
 
 ### Supported Models
 
@@ -92,16 +122,20 @@ Based on the PRD, the system will implement these key architectural components:
 - Automatic provider translation
 
 #### Smart Routing
-- Cost-based optimization
-- Performance-based routing
-- Health-based failover
-- Round-robin load balancing
+- Cost-based optimization routing
+- Performance-based routing with metrics
+- Health-based failover with circuit breakers
+- Round-robin and weighted load balancing
+- Automatic provider failure detection and recovery
 
 #### Advanced Capabilities
 - Response caching with TTL
 - Multimodal support (text, images, audio)
-- Streaming responses
+- Streaming responses with real-time processing
 - Usage analytics and cost tracking
+- Circuit breaker pattern for resilience
+- Exponential backoff retry mechanisms
+- Provider health monitoring and automatic failover
 
 ## Configuration Architecture
 

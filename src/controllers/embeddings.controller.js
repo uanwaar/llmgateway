@@ -4,9 +4,7 @@
  * Handles OpenAI-compatible embeddings requests
  */
 
-const ProviderRegistry = require('../providers/base/registry');
-const ResponseTransformer = require('../providers/base/response.transformer');
-const { ModelNotFoundError, ValidationError } = require('../utils/errors');
+const gatewayService = require('../services/gateway.service');
 const logger = require('../utils/logger');
 
 class EmbeddingsController {
@@ -14,7 +12,7 @@ class EmbeddingsController {
    * Create embeddings
    */
   static async createEmbeddings(req, res) {
-    const { model, input, encoding_format = 'float', dimensions, user } = req.body;
+    const { model, input, encoding_format = 'float', dimensions } = req.body;
     
     try {
       logger.info('Embeddings request', {
@@ -26,62 +24,20 @@ class EmbeddingsController {
         dimensions,
       });
       
-      // Get provider for the model
-      const provider = ProviderRegistry.getProviderForModel(model);
-      if (!provider) {
-        throw new ModelNotFoundError(model, {
-          availableModels: ProviderRegistry.getAvailableModels()
-            .filter(m => m.capabilities.includes('embeddings'))
-            .map(m => m.id),
-          requestedModel: model,
-        });
-      }
+      // Use gateway service for embeddings processing
+      const response = await gatewayService.createEmbeddings(req.body, {
+        requestId: req.id,
+      });
       
-      // Add provider info to request for metrics
-      req.provider = provider.name;
-      
-      // Validate model supports embeddings
-      const modelInfo = ProviderRegistry.getModelInfo(model);
-      if (!modelInfo || !modelInfo.capabilities.includes('embeddings')) {
-        throw new ValidationError(
-          `Model ${model} does not support embeddings`,
-          'model',
-          model,
-          {
-            modelCapabilities: modelInfo?.capabilities || [],
-            requiredCapability: 'embeddings',
-          },
-        );
-      }
-      
-      // Prepare request for provider
-      const providerRequest = {
-        model,
-        input,
-        encoding_format,
-        dimensions,
-        user,
-      };
-      
-      // Get embeddings from provider
-      const response = await provider.createEmbeddings(providerRequest);
-      
-      // Transform response to OpenAI format
-      const transformedResponse = ResponseTransformer.transformEmbeddings(
-        response,
-        provider.name,
-        model,
-      );
-      
+      // Gateway service returns already transformed response
       logger.info('Embeddings completed', {
         requestId: req.id,
         model,
-        provider: provider.name,
-        embeddingsCount: transformedResponse.data?.length || 0,
-        tokensUsed: transformedResponse.usage?.total_tokens || 0,
+        embeddingsCount: response.data?.length || 0,
+        tokensUsed: response.usage?.total_tokens || 0,
       });
       
-      res.json(transformedResponse);
+      res.json(response);
       
     } catch (error) {
       logger.error('Embeddings error', {
@@ -100,7 +56,7 @@ class EmbeddingsController {
    */
   static async getAvailableModels(req, res) {
     try {
-      const models = ProviderRegistry.getAvailableModels()
+      const models = gatewayService.getAvailableModels()
         .filter(model => model.capabilities.includes('embeddings'))
         .map(model => ({
           id: model.id,

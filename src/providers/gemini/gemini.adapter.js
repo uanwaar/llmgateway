@@ -60,7 +60,11 @@ class GeminiAdapter extends BaseAdapter {
       throw new ValidationError(validation.error, 'INVALID_MODEL', 'gemini');
     }
 
-    return GeminiTransformer.transformChatRequest(request);
+    const transformedRequest = GeminiTransformer.transformChatRequest(request);
+    // Preserve the model field for the adapter to use
+    transformedRequest.model = request.model;
+    
+    return transformedRequest;
   }
 
   async _normalizeEmbeddingRequest(request) {
@@ -339,6 +343,10 @@ class GeminiAdapter extends BaseAdapter {
       type: model.type,
       capabilities: model.capabilities,
     }));
+  }
+
+  getSupportedModels() {
+    return this.getAvailableModels();
   }
 
   getSupportedFeatures() {

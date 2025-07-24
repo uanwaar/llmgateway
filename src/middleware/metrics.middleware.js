@@ -60,7 +60,8 @@ function metricsMiddleware(req, res, next) {
     
     // Track by provider if available
     if (req.provider) {
-      metrics.requests.byProvider[req.provider] = (metrics.requests.byProvider[req.provider] || 0) + 1;
+      metrics.requests.byProvider[req.provider] = 
+        (metrics.requests.byProvider[req.provider] || 0) + 1;
     }
     
     // Log performance metrics for slow requests

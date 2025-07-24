@@ -4,8 +4,7 @@
  * Handles OpenAI-compatible audio endpoints (Whisper, TTS)
  */
 
-const ProviderRegistry = require('../providers/base/registry');
-const ResponseTransformer = require('../providers/base/response.transformer');
+const gatewayService = require('../services/gateway.service');
 const { ModelNotFoundError, ValidationError, BadRequestError } = require('../utils/errors');
 const logger = require('../utils/logger');
 
@@ -40,36 +39,8 @@ class AudioController {
         responseFormat: response_format,
       });
       
-      // Get provider for the model
-      const provider = ProviderRegistry.getProviderForModel(model);
-      if (!provider) {
-        throw new ModelNotFoundError(model, {
-          availableModels: ProviderRegistry.getAvailableModels()
-            .filter(m => m.capabilities.includes('audio'))
-            .map(m => m.id),
-          requestedModel: model,
-        });
-      }
-      
-      // Add provider info to request for metrics
-      req.provider = provider.name;
-      
-      // Validate model supports audio transcription
-      const modelInfo = ProviderRegistry.getModelInfo(model);
-      if (!modelInfo || !modelInfo.capabilities.includes('audio')) {
-        throw new ValidationError(
-          `Model ${model} does not support audio transcription`,
-          'model',
-          model,
-          {
-            modelCapabilities: modelInfo?.capabilities || [],
-            requiredCapability: 'audio',
-          },
-        );
-      }
-      
-      // Prepare request for provider
-      const providerRequest = {
+      // Prepare request for gateway service
+      const request = {
         model,
         file: req.file,
         language,
@@ -78,16 +49,10 @@ class AudioController {
         temperature,
       };
       
-      // Get transcription from provider
-      const response = await provider.createTranscription(providerRequest);
-      
-      // Transform response to OpenAI format
-      const transformedResponse = ResponseTransformer.transformTranscription(
-        response,
-        provider.name,
-        model,
-        response_format,
-      );
+      // Use gateway service for transcription processing
+      const transformedResponse = await gatewayService.createTranscription(request, {
+        requestId: req.id,
+      });
       
       // Set appropriate content type based on response format
       if (response_format === 'text') {
@@ -100,7 +65,6 @@ class AudioController {
       logger.info('Audio transcription completed', {
         requestId: req.id,
         model,
-        provider: provider.name,
         fileSize: req.file.size,
         textLength: typeof transformedResponse === 'string' 
           ? transformedResponse.length 
@@ -148,22 +112,8 @@ class AudioController {
         responseFormat: response_format,
       });
       
-      // Get provider for the model
-      const provider = ProviderRegistry.getProviderForModel(model);
-      if (!provider) {
-        throw new ModelNotFoundError(model, {
-          availableModels: ProviderRegistry.getAvailableModels()
-            .filter(m => m.capabilities.includes('audio'))
-            .map(m => m.id),
-          requestedModel: model,
-        });
-      }
-      
-      // Add provider info to request for metrics
-      req.provider = provider.name;
-      
-      // Prepare request for provider (translation always outputs English)
-      const providerRequest = {
+      // Prepare request for gateway service (translation always outputs English)
+      const request = {
         model,
         file: req.file,
         language: 'en', // Force English output for translation
@@ -173,16 +123,13 @@ class AudioController {
         task: 'translate', // Indicate this is a translation task
       };
       
-      // Get translation from provider
-      const response = await provider.createTranscription(providerRequest);
+      // Use gateway service for translation processing
+      const response = await gatewayService.createTranscription(request, {
+        requestId: req.id,
+      });
       
-      // Transform response to OpenAI format
-      const transformedResponse = ResponseTransformer.transformTranscription(
-        response,
-        provider.name,
-        model,
-        response_format,
-      );
+      // Gateway service returns already transformed response
+      const transformedResponse = response;
       
       // Set appropriate content type based on response format
       if (response_format === 'text') {
@@ -195,7 +142,6 @@ class AudioController {
       logger.info('Audio translation completed', {
         requestId: req.id,
         model,
-        provider: provider.name,
         fileSize: req.file.size,
         textLength: typeof transformedResponse === 'string' 
           ? transformedResponse.length 
@@ -231,11 +177,11 @@ class AudioController {
         speed,
       });
       
-      // Get provider for the model
-      const provider = ProviderRegistry.getProviderForModel(model);
-      if (!provider) {
+      // Get provider for the model (TODO: Add TTS support to gateway service)
+      const providerInfo = gatewayService.getProviderForModel(model);
+      if (!providerInfo) {
         throw new ModelNotFoundError(model, {
-          availableModels: ProviderRegistry.getAvailableModels()
+          availableModels: gatewayService.getAvailableModels()
             .filter(m => m.capabilities.includes('tts'))
             .map(m => m.id),
           requestedModel: model,
@@ -243,10 +189,10 @@ class AudioController {
       }
       
       // Add provider info to request for metrics
-      req.provider = provider.name;
+      req.provider = providerInfo.name;
       
       // Validate model supports TTS
-      const modelInfo = ProviderRegistry.getModelInfo(model);
+      const modelInfo = gatewayService.getModelInfo(model);
       if (!modelInfo || !modelInfo.capabilities.includes('tts')) {
         throw new ValidationError(
           `Model ${model} does not support text-to-speech`,
@@ -269,7 +215,7 @@ class AudioController {
       };
       
       // Get speech from provider
-      const audioStream = await provider.createSpeech(providerRequest);
+      const audioStream = await providerInfo.adapter.generateSpeech(providerRequest);
       
       // Set appropriate headers for audio response
       const mimeTypes = {
