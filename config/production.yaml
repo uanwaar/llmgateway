@@ -1,6 +1,6 @@
 # Production environment configuration
 server:
-  port: 8080
+  port: 8000
   corsEnabled: true
   corsOrigins: []  # Set specific origins in production
 
