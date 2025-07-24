@@ -183,9 +183,10 @@ class GatewayService {
         });
       }
 
-      // Execute request with failover
+      // Execute request with failover - use streamCompletion for streaming requests
+      const method = requestData.stream ? 'streamCompletion' : 'generateCompletion';
       const result = await this.executeWithFailover(
-        'generateCompletion',
+        method,
         provider,
         request,
         options,

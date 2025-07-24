@@ -31,8 +31,31 @@ class ChatController {
       
       // Handle streaming response
       if (stream) {
-        // For streaming, result is already a stream that can be piped to response
-        return result.pipe(res);
+        // Set headers for Server-Sent Events
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        
+        try {
+          // Iterate through the streaming response
+          for await (const chunk of result) {
+            // Write each chunk as a Server-Sent Event
+            res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+          }
+          
+          // Send the final "done" event
+          res.write('data: [DONE]\n\n');
+          res.end();
+        } catch (error) {
+          logger.error('Streaming error', {
+            requestId: req.id,
+            error: error.message,
+          });
+          res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+          res.end();
+        }
+        return;
       }
       
       // Handle non-streaming response - gateway service already returns transformed response

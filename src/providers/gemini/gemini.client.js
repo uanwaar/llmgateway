@@ -1,7 +1,7 @@
 const https = require('https');
 const FormData = require('form-data');
 const { logger } = require('../../utils/logger');
-const { ProviderError, NetworkError, RateLimitError } = require('../../utils/errors');
+const { ProviderError, RequestTimeoutError, RateLimitError } = require('../../utils/errors');
 
 class GeminiClient {
   constructor(config) {
@@ -168,7 +168,7 @@ class GeminiClient {
       contentCount: request.contents?.length,
     });
 
-    const response = await this.makeRequest(`/models/${model}:streamGenerateContent`, {
+    const response = await this.makeRequest(`/models/${model}:streamGenerateContent?alt=sse`, {
       method: 'POST',
       data: request,
       stream: true,
@@ -287,40 +287,46 @@ class GeminiClient {
   }
 
   async _handleStreamingResponse(stream) {
-    const chunks = [];
-    
-    return new Promise((resolve, reject) => {
-      stream.on('data', (chunk) => {
-        chunks.push(chunk);
-      });
-
-      stream.on('end', () => {
-        resolve({
-          stream: true,
-          chunks,
-          async *[Symbol.asyncIterator] () {
-            for (const chunk of chunks) {
-              const lines = chunk.toString().split('\n');
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  const data = line.slice(6);
-                  if (data.trim()) {
-                    try {
-                      yield JSON.parse(data);
-                    } catch (error) {
-                      // Skip invalid JSON
-                      logger.debug('Skipping invalid JSON in stream', { data });
-                    }
-                  }
+    return {
+      stream: true,
+      async *[Symbol.asyncIterator] () {
+        let buffer = '';
+        
+        for await (const chunk of stream) {
+          buffer += chunk.toString();
+          const lines = buffer.split('\n');
+          
+          // Keep the last incomplete line in the buffer
+          buffer = lines.pop() || '';
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data.trim()) {
+                try {
+                  yield JSON.parse(data);
+                } catch (error) {
+                  // Skip invalid JSON
+                  logger.debug('Skipping invalid JSON in stream', { data });
                 }
               }
             }
-          },
-        });
-      });
-
-      stream.on('error', reject);
-    });
+          }
+        }
+        
+        // Process any remaining data in buffer
+        if (buffer.startsWith('data: ')) {
+          const data = buffer.slice(6);
+          if (data.trim()) {
+            try {
+              yield JSON.parse(data);
+            } catch (error) {
+              logger.debug('Skipping invalid JSON in final buffer', { data });
+            }
+          }
+        }
+      },
+    };
   }
 
   _shouldRetry(error) {
@@ -341,7 +347,7 @@ class GeminiClient {
 
   _handleError(error) {
     if (error.message.includes('timeout')) {
-      return new NetworkError('Request timeout', 'TIMEOUT', 'gemini');
+      return new RequestTimeoutError(30000, { provider: 'gemini', originalError: error.message });
     }
 
     if (error.message.includes('HTTP 401')) {
@@ -377,7 +383,7 @@ class GeminiClient {
       return new ProviderError('Gemini server error', 'SERVER_ERROR', 'gemini');
     }
 
-    return new NetworkError(error.message, 'NETWORK_ERROR', 'gemini');
+    return new ProviderError(error.message, 'NETWORK_ERROR', 'gemini');
   }
 
   _sleep(ms) {

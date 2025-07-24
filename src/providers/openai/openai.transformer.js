@@ -467,7 +467,41 @@ class OpenAITransformer {
 
   static transformStreamingChunk(chunk, requestId) {
     try {
-      return ResponseTransformer.transformStreamingChunk(chunk, 'openai', requestId);
+      const unified = {
+        id: requestId,
+        provider: 'openai',
+        object: 'chat.completion.chunk',
+        created: Math.floor(Date.now() / 1000),
+        model: chunk.model || null,
+        choices: [],
+      };
+
+      // Process choices from the OpenAI streaming chunk
+      if (chunk.choices && chunk.choices.length > 0) {
+        unified.choices = chunk.choices.map(choice => ({
+          index: choice.index || 0,
+          delta: {
+            role: choice.delta?.role || null,
+            content: choice.delta?.content || null,
+            tool_calls: choice.delta?.tool_calls || null,
+            refusal: choice.delta?.refusal || null,
+          },
+          finish_reason: choice.finish_reason || null,
+          logprobs: choice.logprobs || null,
+        }));
+      }
+
+      // Add usage information if available
+      if (chunk.usage) {
+        unified.usage = {
+          prompt_tokens: chunk.usage.prompt_tokens || 0,
+          completion_tokens: chunk.usage.completion_tokens || 0,
+          total_tokens: chunk.usage.total_tokens || 0,
+          reasoning_tokens: chunk.usage.reasoning_tokens || 0,
+        };
+      }
+
+      return unified;
     } catch (error) {
       logger.error('Failed to transform OpenAI streaming chunk', {
         error: error.message,
