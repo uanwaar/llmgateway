@@ -19,6 +19,7 @@ const logger = require('./utils/logger');
 const app = require('./app');
 const server = require('./server');
 const gatewayService = require('./services/gateway.service');
+const cacheMiddleware = require('./middleware/cache.middleware');
 
 /**
  * Initialize the application
@@ -37,6 +38,9 @@ async function initialize() {
     // Initialize gateway service and providers
     await gatewayService.initialize();
 
+    // Initialize cache middleware
+    await cacheMiddleware.initialize();
+
     // Start the server
     await server.start(app);
     
@@ -54,7 +58,12 @@ async function shutdown(signal) {
   logger.info(`Received ${signal}, starting graceful shutdown`);
   
   try {
+    // Shutdown cache middleware
+    await cacheMiddleware.shutdown();
+    
+    // Stop the server
     await server.stop();
+    
     logger.info('Graceful shutdown completed');
     process.exit(0);
   } catch (error) {

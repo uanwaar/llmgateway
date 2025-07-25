@@ -1,11 +1,13 @@
 /**
  * Request validation middleware
  * 
- * Joi-based request validation
+ * Joi-based request validation with sanitization
  */
 
 const Joi = require('joi');
 const { ValidationError } = require('../utils/errors');
+const validationService = require('../services/validation.service');
+const { validators } = require('../utils/validator');
 
 /**
  * Create validation middleware
@@ -60,10 +62,43 @@ function createValidationMiddleware(schema, options = {}) {
         return next(validationError);
       }
       
+      // Sanitize validated values
+      const sanitizationOptions = options.sanitization || {
+        html: true,
+        sql: true,
+        xss: true,
+        trim: true,
+        normalize: true,
+      };
+      
       // Update request with validated/sanitized values
-      if (value.body) req.body = value.body;
-      if (value.params) req.params = value.params;
-      if (value.query) req.query = value.query;
+      if (value.body) {
+        req.body = validationService.sanitizeObject(value.body, sanitizationOptions);
+      }
+      if (value.params) {
+        req.params = validationService.sanitizeObject(value.params, sanitizationOptions);
+      }
+      if (value.query) {
+        req.query = validationService.sanitizeObject(value.query, sanitizationOptions);
+      }
+      
+      // Validate request size
+      if (options.validateSize !== false) {
+        try {
+          validationService.validateRequestSize(req, options.maxSize);
+        } catch (error) {
+          return next(error);
+        }
+      }
+      
+      // Validate content type for POST/PUT requests
+      if (options.validateContentType !== false && ['POST', 'PUT', 'PATCH'].includes(req.method)) {
+        try {
+          validationService.validateContentType(req, options.allowedContentTypes);
+        } catch (error) {
+          return next(error);
+        }
+      }
       
       next();
     } catch (error) {
@@ -76,82 +111,85 @@ function createValidationMiddleware(schema, options = {}) {
  * Common validation schemas
  */
 const schemas = {
-  // Chat completion request schema
+  // Chat completion request schema - FLEXIBLE VERSION
   chatCompletion: {
     body: Joi.object({
+      // Required fields
       model: Joi.string().required().description('Model to use for completion'),
       messages: Joi.array().items(
         Joi.object({
-          role: Joi.string().valid('system', 'user', 'assistant', 'function', 'tool').required(),
+          role: Joi.string().required(), // Allow any role string for flexibility
           content: Joi.alternatives().try(
-            Joi.string(),
-            Joi.array().items(
-              Joi.object({
-                type: Joi.string().valid('text', 'image_url').required(),
-                text: Joi.string().when('type', { is: 'text', then: Joi.required() }),
-                image_url: Joi.object({
-                  url: Joi.string().uri().required(),
-                  detail: Joi.string().valid('low', 'high', 'auto').default('auto'),
-                }).when('type', { is: 'image_url', then: Joi.required() }),
-              }),
-            ),
-          ).required(),
-          name: Joi.string().optional(),
-          function_call: Joi.object().optional(),
-          tool_calls: Joi.array().optional(),
-          tool_call_id: Joi.string().optional(),
-        }),
+            Joi.string().allow(''),
+            Joi.array(),
+            Joi.object(),
+            null,
+          ).allow(null), // Very flexible content
+        }).unknown(true), // Allow additional message properties
       ).min(1).required(),
-      temperature: Joi.number().min(0).max(2).default(1),
-      top_p: Joi.number().min(0).max(1).default(1),
-      n: Joi.number().integer().min(1).max(10).default(1),
-      stream: Joi.boolean().default(false),
-      stop: Joi.alternatives().try(Joi.string(), Joi.array().items(Joi.string()).max(4)),
-      max_tokens: Joi.number().integer().min(1).max(8192),
-      presence_penalty: Joi.number().min(-2).max(2).default(0),
-      frequency_penalty: Joi.number().min(-2).max(2).default(0),
-      logit_bias: Joi.object().pattern(Joi.string(), Joi.number().min(-100).max(100)),
+      
+      // Optional parameters - all very flexible with minimal constraints
+      temperature: Joi.number().min(0).max(5).optional(), // Extended range
+      top_p: Joi.number().min(0).max(1).optional(),
+      n: Joi.number().integer().min(1).max(20).optional(), // Higher limit
+      stream: Joi.boolean().optional(),
+      stop: Joi.alternatives().try(
+        Joi.string(), 
+        Joi.array().items(Joi.string()),
+        null,
+      ).optional(),
+      max_tokens: Joi.number().integer().min(1).optional(), // No upper limit
+      presence_penalty: Joi.number().min(-2).max(2).optional(),
+      frequency_penalty: Joi.number().min(-2).max(2).optional(),
+      logit_bias: Joi.object().optional(),
       user: Joi.string().optional(),
-      response_format: Joi.object({
-        type: Joi.string().valid('text', 'json_object').default('text'),
-      }),
-      seed: Joi.number().integer(),
-      tools: Joi.array().items(
-        Joi.object({
-          type: Joi.string().valid('function').required(),
-          function: Joi.object({
-            name: Joi.string().required(),
-            description: Joi.string(),
-            parameters: Joi.object(),
-          }).required(),
-        }),
-      ),
+      
+      // Response format - flexible
+      response_format: Joi.alternatives().try(
+        Joi.object(),
+        Joi.string(),
+      ).optional(),
+      
+      // Additional OpenAI parameters
+      seed: Joi.number().integer().optional(),
+      tools: Joi.array().optional(),
       tool_choice: Joi.alternatives().try(
-        Joi.string().valid('none', 'auto'),
-        Joi.object({
-          type: Joi.string().valid('function').required(),
-          function: Joi.object({
-            name: Joi.string().required(),
-          }).required(),
-        }),
-      ),
-    }),
+        Joi.string(),
+        Joi.object(),
+      ).optional(),
+      
+      // Function calling (legacy)
+      functions: Joi.array().optional(),
+      function_call: Joi.alternatives().try(
+        Joi.string(),
+        Joi.object(),
+      ).optional(),
+      
+      // Gemini-specific parameters
+      safety_settings: Joi.array().optional(),
+      generation_config: Joi.object().optional(),
+      
+    }).unknown(true), // Allow any additional properties for maximum flexibility
   },
   
-  // Embeddings request schema
+  // Embeddings request schema - FLEXIBLE VERSION
   embeddings: {
     body: Joi.object({
+      // Required fields
       input: Joi.alternatives().try(
-        Joi.string(),
-        Joi.array().items(Joi.string()),
-        Joi.array().items(Joi.number().integer()),
-        Joi.array().items(Joi.array().items(Joi.number().integer())),
+        Joi.string().allow(''),
+        Joi.array(),
+        Joi.number(),
+        Joi.object(),
       ).required(),
       model: Joi.string().required(),
-      encoding_format: Joi.string().valid('float', 'base64').default('float'),
-      dimensions: Joi.number().integer().min(1),
+      
+      // Optional parameters - flexible
+      encoding_format: Joi.string().optional(), // Allow any encoding format
+      dimensions: Joi.number().integer().min(1).optional(),
       user: Joi.string().optional(),
-    }),
+      
+    }).unknown(true), // Allow additional properties
   },
   
   // Audio transcription schema
@@ -179,7 +217,147 @@ const schemas = {
       speed: Joi.number().min(0.25).max(4.0).default(1.0),
     }),
   },
+  
+  // File upload validation
+  fileUpload: {
+    body: Joi.object({
+      purpose: Joi.string().valid('transcription', 'translation', 'fine-tune').required(),
+      file: Joi.any().required(),
+    }),
+  },
+  
+  // Models listing validation
+  models: {
+    query: Joi.object({
+      provider: Joi.string().valid('openai', 'gemini', 'all').default('all'),
+      capability: Joi.string().valid('chat', 'embeddings', 'audio', 'vision'),
+      limit: Joi.number().integer().min(1).max(100).default(50),
+      offset: Joi.number().integer().min(0).default(0),
+    }),
+  },
+  
+  // Health check validation
+  health: {
+    query: Joi.object({
+      detailed: Joi.boolean().default(false),
+      provider: Joi.string().valid('openai', 'gemini'),
+    }),
+  },
+  
+  // Metrics validation
+  metrics: {
+    query: Joi.object({
+      period: Joi.string().valid('hour', 'day', 'week', 'month').default('hour'),
+      provider: Joi.string().valid('openai', 'gemini'),
+      metric: Joi.string().valid('requests', 'latency', 'errors', 'cache'),
+      format: Joi.string().valid('json', 'prometheus').default('json'),
+    }),
+  },
 };
+
+/**
+ * Security validation middleware
+ */
+function createSecurityValidationMiddleware(options = {}) {
+  return (req, res, next) => {
+    try {
+      // Rate limit validation
+      if (options.checkRateLimit !== false) {
+        const rateLimitHeaders = ['x-ratelimit-limit', 'x-ratelimit-remaining'];
+        rateLimitHeaders.forEach(header => {
+          if (req.headers[header] && !validators.range(parseInt(req.headers[header]), 0).valid) {
+            return next(new ValidationError(`Invalid ${header} header`));
+          }
+        });
+      }
+      
+      // API key validation
+      if (options.validateApiKey !== false && req.headers.authorization) {
+        const authHeader = req.headers.authorization;
+        if (authHeader.startsWith('Bearer ')) {
+          const apiKey = authHeader.substring(7);
+          const validation = validators.apiKey(apiKey);
+          if (!validation.valid) {
+            return next(new ValidationError('Invalid API key format'));
+          }
+        }
+      }
+      
+      // User agent validation
+      if (options.requireUserAgent && !req.headers['user-agent']) {
+        return next(new ValidationError('User-Agent header required'));
+      }
+      
+      // Origin validation for CORS preflight
+      if (req.method === 'OPTIONS' && req.headers.origin) {
+        const originValid = validators.url(req.headers.origin);
+        if (!originValid.valid) {
+          return next(new ValidationError('Invalid Origin header'));
+        }
+      }
+      
+      // Content encoding validation
+      if (req.headers['content-encoding']) {
+        const allowedEncodings = ['gzip', 'deflate', 'br'];
+        if (!allowedEncodings.includes(req.headers['content-encoding'])) {
+          return next(new ValidationError('Unsupported content encoding'));
+        }
+      }
+      
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+/**
+ * Parameter sanitization middleware
+ */
+function createSanitizationMiddleware(options = {}) {
+  return (req, res, next) => {
+    try {
+      const sanitizationOptions = {
+        html: options.html !== false,
+        sql: options.sql !== false,
+        xss: options.xss !== false,
+        trim: options.trim !== false,
+        normalize: options.normalize !== false,
+        ...options,
+      };
+      
+      // Sanitize all request data
+      if (req.body) {
+        req.body = validationService.sanitizeObject(req.body, sanitizationOptions);
+      }
+      
+      if (req.query) {
+        req.query = validationService.sanitizeObject(req.query, sanitizationOptions);
+      }
+      
+      if (req.params) {
+        req.params = validationService.sanitizeObject(req.params, sanitizationOptions);
+      }
+      
+      // Sanitize specific headers
+      const headersToSanitize = ['user-agent', 'referer'];
+      headersToSanitize.forEach(header => {
+        if (req.headers[header]) {
+          req.headers[header] = validationService.sanitize(
+            req.headers[header], 
+            sanitizationOptions,
+          );
+        }
+      });
+      
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
 
 module.exports = createValidationMiddleware;
 module.exports.schemas = schemas;
+module.exports.security = createSecurityValidationMiddleware;
+module.exports.sanitization = createSanitizationMiddleware;

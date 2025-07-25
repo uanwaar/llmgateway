@@ -11,6 +11,8 @@ const validationMiddleware = require('./validation.middleware');
 const metricsMiddleware = require('./metrics.middleware');
 const loggingMiddleware = require('./logging.middleware');
 const requestIdMiddleware = require('./requestId.middleware');
+const cacheMiddleware = require('./cache.middleware');
+const corsMiddleware = require('./cors.middleware');
 
 module.exports = {
   // Error handling
@@ -38,7 +40,25 @@ module.exports = {
   
   // Logging
   logging: loggingMiddleware,
+  errorLogging: loggingMiddleware.error,
+  performanceLogging: loggingMiddleware.performance,
+  auditLogging: loggingMiddleware.audit,
   
   // Request ID
   requestId: requestIdMiddleware,
+  
+  // Response caching
+  cache: cacheMiddleware,
+  
+  // CORS handling
+  cors: corsMiddleware,
+  
+  // Enhanced validation with security and sanitization
+  securityValidation: validationMiddleware.security,
+  sanitization: validationMiddleware.sanitization,
+  
+  // Rate limiting strategies
+  rateLimitStrategies: rateLimitMiddleware.STRATEGIES,
+  adaptiveRateLimit: rateLimitMiddleware.adaptive,
+  customRateLimit: rateLimitMiddleware.createCustom,
 };

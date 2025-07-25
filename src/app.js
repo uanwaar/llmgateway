@@ -52,6 +52,9 @@ function createApp() {
   app.use(middleware.requestId);
   app.use(middleware.logging);
   app.use(middleware.metrics);
+  
+  // Response caching middleware (before routes)
+  app.use(middleware.cache.middleware());
 
   // Authentication middleware (applied selectively)
   if (config.auth.requireAuthHeader) {

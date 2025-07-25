@@ -237,7 +237,7 @@ class AudioController {
         logger.info('Text-to-speech completed', {
           requestId: req.id,
           model,
-          provider: provider.name,
+          provider: providerInfo.name,
           voice,
           inputLength: input.length,
           format: response_format,
@@ -249,7 +249,7 @@ class AudioController {
           requestId: req.id,
           model,
           error: error.message,
-          provider: provider.name,
+          provider: providerInfo.name,
         });
         
         if (!res.headersSent) {

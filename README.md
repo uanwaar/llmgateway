@@ -552,6 +552,8 @@ curl -X POST http://localhost:8080/v1/audio/speech \
 
 ## API Endpoints
 
+📖 **For detailed API usage, validation rules, and examples, see: [API Validation Guide](docs/api-validation.md)**
+
 ### Core Endpoints
 - `POST /v1/chat/completions` - Chat completions with streaming support
 - `POST /v1/embeddings` - Text embeddings generation
@@ -773,6 +775,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support and Community
 
 - **Documentation**: [Full documentation](docs/)
+  - [API Validation Guide](docs/api-validation.md) - Request formats, validation rules, and examples
 - **Issues**: [GitHub Issues](https://github.com/your-org/llm-gateway/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/your-org/llm-gateway/discussions)
 - **Discord**: [Join our Discord community](https://discord.gg/llm-gateway)
@@ -797,6 +800,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Built with ❤️ by the LLM Gateway community**
+**Built with ❤️ by Umair Anwaar**
 
 *Transform your AI applications with unified, intelligent LLM routing*

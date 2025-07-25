@@ -16,7 +16,18 @@ const router = express.Router();
 // Chat completions endpoint with validation and rate limiting
 router.post('/completions',
   rateLimitMiddleware.chat,
-  validationMiddleware(validationMiddleware.schemas.chatCompletion),
+  validationMiddleware(validationMiddleware.schemas.chatCompletion, {
+    allowUnknown: true,    // Allow unknown properties
+    stripUnknown: false,   // Don't strip unknown properties
+    validateSize: false,   // Skip size validation for flexibility
+    validateContentType: false, // Skip content type validation
+    sanitization: {
+      html: false,         // Don't sanitize HTML in chat content
+      sql: false,          // Don't sanitize SQL in chat content  
+      xss: false,          // Don't sanitize XSS in chat content
+      trim: false,         // Don't trim content
+    },
+  }),
   asyncCatch(ChatController.createCompletion),
 );
 

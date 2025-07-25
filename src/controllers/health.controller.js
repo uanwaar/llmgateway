@@ -6,6 +6,7 @@
 
 const { registry } = require('../providers/base/registry');
 const { getMetrics } = require('../middleware/metrics.middleware');
+const cacheMiddleware = require('../middleware/cache.middleware');
 const config = require('../config');
 const logger = require('../utils/logger');
 const { version } = require('../../package.json');
@@ -61,8 +62,12 @@ class HealthController {
       // Application metrics
       const appMetrics = getMetrics();
       
+      // Cache metrics
+      const cacheStats = cacheMiddleware.getStats();
+      const cacheHealth = await cacheMiddleware.healthCheck();
+      
       const overallStatus = providerStatuses.every(p => p.status === 'healthy') 
-        ? 'healthy' : 'degraded';
+        && cacheHealth.healthy ? 'healthy' : 'degraded';
       
       const detailedHealth = {
         status: overallStatus,
@@ -74,6 +79,10 @@ class HealthController {
         providers: providerStatuses,
         system: systemMetrics,
         metrics: appMetrics,
+        cache: {
+          health: cacheHealth,
+          stats: cacheStats,
+        },
         configuration: {
           auth_enabled: config.auth?.requireAuthHeader || false,
           rate_limiting_enabled: config.server?.rateLimitingEnabled || false,
@@ -182,9 +191,13 @@ class HealthController {
         arch: process.arch,
       };
       
+      // Add cache metrics
+      const cacheStats = cacheMiddleware.getStats();
+      
       const response = {
         ...metrics,
         system: systemMetrics,
+        cache: cacheStats,
         timestamp: new Date().toISOString(),
       };
       
