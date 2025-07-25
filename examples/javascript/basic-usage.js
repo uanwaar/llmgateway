@@ -22,7 +22,7 @@ async function basicChatNoAuth() {
         messages: [
           { 
             role: 'user', 
-            content: 'Hello! This works without auth headers thanks to .env configuration.', 
+            content: 'Hello! whats on my mind?', 
           },
         ],
       }),
@@ -33,7 +33,7 @@ async function basicChatNoAuth() {
     }
 
     const data = await response.json();
-    
+    console.log('Assistant response:', data.choices[0].message.content);
     console.log('Model used:', data.model);
     console.log('Usage:', data.usage);
     console.log('✅ SUCCESS: No auth header needed!');
@@ -50,7 +50,7 @@ async function basicChatWithFetch() {
   const apiKey = 'your-api-key-here'; // Replace with your actual API key
   
   try {
-    const response = await fetch('http://localhost:3000/v1/chat/completions', {
+    const response = await fetch('http://localhost:8080/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -69,7 +69,7 @@ async function basicChatWithFetch() {
     }
 
     const data = await response.json();
-    console.log('Response:', data.choices[0].message.content);
+    console.log('Assistant response:', data.choices[0].message.content);
     console.log('Model used:', data.model);
     console.log('Usage:', data.usage);
     
@@ -93,7 +93,7 @@ async function chatWithSystemPrompt() {
         model: 'gpt-4o',
         messages: [
           { role: 'system', content: 'You are a helpful coding assistant.' },
-          { role: 'user', content: 'Write a simple Python function to calculate factorial.' },
+          { role: 'user', content: 'im testing my app say all the best to me' },
         ],
         temperature: 0.7,
         max_tokens: 300,
@@ -102,22 +102,31 @@ async function chatWithSystemPrompt() {
 
     const data = await response.json();
     console.log('Assistant response:', data.choices[0].message.content);
+    console.log('Model used:', data.model);
+    console.log('Usage:', data.usage);
   } catch (error) {
     console.error('Error:', error.message);
   }
 }
 
 // Example 3: Using OpenAI SDK compatibility mode
+/*
 async function usingOpenAISDK() {
   console.log('\n=== Using OpenAI SDK (Compatible) ===');
   
   // Note: Install with: npm install openai
   const OpenAI = require('openai');
   
-  const openai = new OpenAI({
-    apiKey: 'your-api-key-here',
-    baseURL: 'http://localhost:8080/v1',  // Point to LLM Gateway
-  });
+  let openai;
+  try {
+    openai = new OpenAI({
+      apiKey: 'your-api-key-here',
+      baseURL: 'http://localhost:8080/v1',  // Point to LLM Gateway
+    });
+  } catch (error) {
+    console.error('Failed to initialize OpenAI SDK:', error.message);
+    return;
+  }
 
   try {
     const completion = await openai.chat.completions.create({
@@ -142,6 +151,8 @@ async function usingOpenAISDK() {
     console.error('SDK Error:', error.message);
   }
 }
+*/
+// Uncomment the above function to use OpenAI SDK compatibility mode
 
 // Example 4: Using Gemini models
 async function usingGeminiModel() {
@@ -155,7 +166,7 @@ async function usingGeminiModel() {
         'Authorization': 'Bearer your-api-key-here',
       },
       body: JSON.stringify({
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-2.0-flash',
         messages: [
           { role: 'user', content: 'What are the benefits of renewable energy?' },
         ],
@@ -166,6 +177,8 @@ async function usingGeminiModel() {
 
     const data = await response.json();
     console.log('Gemini response:', data.choices[0].message.content);
+    console.log('Model used:', data.model);
+    console.log('Usage:', data.usage);
   } catch (error) {
     console.error('Error:', error.message);
   }
@@ -291,7 +304,7 @@ async function runExamples() {
   await basicChatNoAuth();  // This should work with .env configuration
   await basicChatWithFetch();
   await chatWithSystemPrompt();
-  await usingOpenAISDK();
+  // await usingOpenAISDK();
   await usingGeminiModel();
   await getAvailableModels();
   await customParameters();
@@ -310,7 +323,7 @@ module.exports = {
   basicChatNoAuth,
   basicChatWithFetch,
   chatWithSystemPrompt,
-  usingOpenAISDK,
+  //usingOpenAISDK,
   usingGeminiModel,
   getAvailableModels,
   customParameters,

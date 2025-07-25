@@ -320,7 +320,7 @@ class OpenAITransformer {
     try {
       const transformed = {
         model: request.model,
-        messages: this._normalizeMessages(request.messages),
+        input: this._transformMessagesToInput(request.messages),
         ...this._extractResponseParameters(request),
       };
 
@@ -351,8 +351,34 @@ class OpenAITransformer {
         response, 'openai', originalRequest,
       );
       
-      // Handle Responses API structure
-      if (response.choices && response.choices.length > 0) {
+      // Handle new Responses API structure with output array
+      if (response.output && response.output.length > 0) {
+        unified.choices = response.output.map((outputItem, index) => {
+          // Extract text content from output_text parts
+          let content = '';
+          if (outputItem.content && Array.isArray(outputItem.content)) {
+            const textParts = outputItem.content
+              .filter(part => part.type === 'output_text')
+              .map(part => part.text);
+            content = textParts.join('');
+          }
+
+          return {
+            index,
+            message: {
+              role: outputItem.role || 'assistant',
+              content: content || null,
+              tool_calls: null, // TODO: Handle tool calls in output format
+              reasoning: response.reasoning?.summary || null,
+              refusal: null,
+            },
+            finish_reason: outputItem.status === 'completed' ? 'stop' : outputItem.status,
+            logprobs: null, // TODO: Handle logprobs in new format
+          };
+        });
+      }
+      // Fallback to old format for backward compatibility
+      else if (response.choices && response.choices.length > 0) {
         unified.choices = response.choices.map((choice, index) => ({
           index,
           message: {
@@ -553,6 +579,48 @@ class OpenAITransformer {
     });
   }
 
+  static _transformMessagesToInput(messages) {
+    if (!Array.isArray(messages)) {
+      throw new Error('Messages must be an array');
+    }
+
+    return messages.map(message => {
+      const normalized = ResponseTransformer.normalizeMessage(message);
+      
+      // Transform to responses API input format
+      const inputItem = {
+        role: normalized.role,
+        content: []
+      };
+
+      // Handle content transformation
+      if (typeof normalized.content === 'string') {
+        inputItem.content.push({
+          type: 'input_text',
+          text: normalized.content
+        });
+      } else if (Array.isArray(normalized.content)) {
+        inputItem.content = normalized.content.map(part => {
+          if (part.type === 'text') {
+            return {
+              type: 'input_text',
+              text: part.text
+            };
+          }
+          // Keep other types as-is for now (image_url, input_audio, etc.)
+          return part;
+        });
+      } else {
+        inputItem.content.push({
+          type: 'input_text',
+          text: JSON.stringify(normalized.content)
+        });
+      }
+
+      return inputItem;
+    });
+  }
+
   static _extractChatParameters(request) {
     const parameters = {};
 
@@ -655,10 +723,10 @@ class OpenAITransformer {
   static _extractResponseUsage(response) {
     if (response.usage) {
       return {
-        prompt_tokens: response.usage.prompt_tokens || 0,
-        completion_tokens: response.usage.completion_tokens || 0,
+        prompt_tokens: response.usage.input_tokens || response.usage.prompt_tokens || 0,
+        completion_tokens: response.usage.output_tokens || response.usage.completion_tokens || 0,
         total_tokens: response.usage.total_tokens || 0,
-        reasoning_tokens: response.usage.reasoning_tokens || 0,
+        reasoning_tokens: response.usage.output_tokens_details?.reasoning_tokens || response.usage.reasoning_tokens || 0,
       };
     }
 

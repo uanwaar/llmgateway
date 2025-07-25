@@ -68,10 +68,15 @@ POST /v1/responses
 ```json
 {
   "model": "gpt-4o",
-  "messages": [
+  "input": [
     {
       "role": "user",
-      "content": "What is the weather like today in New York?"
+      "content": [
+        {
+          "type": "input_text",
+          "text": "What is the weather like today in New York?"
+        }
+      ]
     }
   ],
   "stream": false
@@ -82,12 +87,12 @@ POST /v1/responses
 ```json
 {
   "model": "gpt-4o",
-  "messages": [
+  "input": [
     {
       "role": "user",
       "content": [
         {
-          "type": "text",
+          "type": "input_text",
           "text": "Analyze this data and create a visualization"
         },
         {
@@ -120,10 +125,15 @@ POST /v1/responses
 ```json
 {
   "model": "gpt-4o",
-  "messages": [
+  "input": [
     {
       "role": "user",
-      "content": "Perform a comprehensive analysis of this 100-page document"
+      "content": [
+        {
+          "type": "input_text",
+          "text": "Perform a comprehensive analysis of this 100-page document"
+        }
+      ]
     }
   ],
   "tools": [
@@ -144,7 +154,7 @@ POST /v1/responses
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `model` | string | Yes | Model ID (e.g., "gpt-4o", "gpt-4o-mini", "o1", "o1-mini") |
-| `messages` | array | Yes | List of messages comprising the conversation |
+| `input` | array | Yes | List of input items comprising the conversation |
 | `tools` | array | No | Array of tools the model may call |
 | `tool_choice` | string/object | No | Controls which tools are called ("none", "auto", "required", or specific tool) |
 | `stream` | boolean | No | Enable streaming responses (default: false) |
@@ -203,26 +213,35 @@ POST /v1/responses
 {
   "id": "resp_12345",
   "object": "response",
-  "created": 1704067200,
+  "created_at": 1704067200,
   "model": "gpt-4o",
-  "choices": [
+  "status": "completed",
+  "output": [
     {
-      "index": 0,
-      "message": {
-        "role": "assistant",
-        "content": "The weather in New York today is partly cloudy with a high of 72°F.",
-        "reasoning": "I searched for current weather information for New York City and found reliable meteorological data."
-      },
-      "finish_reason": "stop"
+      "id": "msg_12345",
+      "type": "message",
+      "status": "completed",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "The weather in New York today is partly cloudy with a high of 72°F."
+        }
+      ]
     }
   ],
   "usage": {
-    "prompt_tokens": 15,
-    "completion_tokens": 20,
+    "input_tokens": 15,
+    "output_tokens": 20,
     "total_tokens": 35,
-    "reasoning_tokens": 150
+    "output_tokens_details": {
+      "reasoning_tokens": 150
+    }
   },
-  "system_fingerprint": "fp_12345"
+  "reasoning": {
+    "effort": null,
+    "summary": "I searched for current weather information for New York City and found reliable meteorological data."
+  }
 }
 ```
 
@@ -709,7 +728,17 @@ OpenAI APIs support comprehensive streaming capabilities using Server-Sent Event
 ```json
 {
   "model": "gpt-4o",
-  "messages": [{"role": "user", "content": "Tell me a story"}],
+  "input": [
+    {
+      "role": "user", 
+      "content": [
+        {
+          "type": "input_text",
+          "text": "Tell me a story"
+        }
+      ]
+    }
+  ],
   "stream": true,
   "stream_options": {
     "include_usage": true
