@@ -1,25 +1,42 @@
-# Development Dockerfile
+# Development Dockerfile for LLM Gateway
 FROM node:18-alpine
 
+# Install development tools and curl for health checks
+RUN apk update && apk add --no-cache \
+    git \
+    curl \
+    bash \
+    && rm -rf /var/cache/apk/*
+
+# Set working directory
 WORKDIR /app
 
-# Install development dependencies
-RUN apk add --no-cache git
+# Create non-root user for development
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S gateway -u 1001
 
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including dev)
-RUN npm install
+# Install all dependencies (including dev dependencies)
+RUN npm install && npm cache clean --force
+
+# Create logs and tmp directories
+RUN mkdir -p logs tmp && \
+    chown -R gateway:nodejs logs tmp
 
 # Copy source code
-COPY . .
+COPY --chown=gateway:nodejs . .
 
-# Create logs directory
-RUN mkdir -p logs
+# Switch to non-root user
+USER gateway
 
-# Expose port
-EXPOSE 3000
+# Expose port (using environment variable with default)
+EXPOSE 8080
 
-# Start with nodemon for development
+# Health check for development
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:${PORT:-8080}/health || exit 1
+
+# Start with nodemon for development with hot reloading
 CMD ["npm", "run", "dev"]

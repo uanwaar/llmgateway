@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Community Discussions
+    url: https://github.com/your-org/llm-gateway/discussions
+    about: Ask questions, share ideas, and discuss with the community
+  - name: 📚 Documentation
+    url: https://github.com/your-org/llm-gateway#readme
+    about: Check the documentation before reporting issues
+  - name: 🔒 Security Vulnerability (Private)
+    url: https://github.com/your-org/llm-gateway/security/advisories/new
+    about: Report security vulnerabilities privately
+  - name: 💡 Feature Ideas Discussion
+    url: https://github.com/your-org/llm-gateway/discussions/categories/ideas
+    about: Discuss feature ideas with the community before creating formal requests

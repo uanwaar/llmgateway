@@ -7,15 +7,17 @@ services:
       context: .
       dockerfile: docker/Dockerfile.dev
     ports:
-      - "3000:3000"
+      - "8080:8080"
     environment:
       - NODE_ENV=development
-      - GATEWAY_PORT=3000
+      - PORT=8080
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - CACHE_ENABLED=true
       - CACHE_BACKEND=memory
       - LOG_LEVEL=debug
+      - RATE_LIMIT_ENABLED=false
+      - AUTH_MODE=hybrid
     volumes:
       - .:/app
       - /app/node_modules
@@ -23,15 +25,35 @@ services:
     networks:
       - gateway-dev-network
     command: npm run dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   redis-dev:
     image: redis:7-alpine
     ports:
       - "6380:6379"
+    volumes:
+      - redis-dev-data:/data
     networks:
       - gateway-dev-network
     command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  redis-dev-data:
+    driver: local
 
 networks:
   gateway-dev-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16

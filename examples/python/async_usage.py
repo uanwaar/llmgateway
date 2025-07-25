@@ -16,6 +16,10 @@ import os
 GATEWAY_BASE_URL = "http://localhost:8080/v1"
 API_KEY = "your-api-key-here"  # Replace with your actual API key
 
+# Alternative: Use environment variables (recommended)
+# If you have configured the .env file with your API keys, you can use any value for API_KEY
+# The gateway will automatically use OPENAI_API_KEY and GEMINI_API_KEY from the environment
+
 
 # Example 1: Basic async chat completion
 async def basic_async_chat():

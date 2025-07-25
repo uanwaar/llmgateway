@@ -173,8 +173,15 @@ class ConfigManager {
     if (process.env.CACHE_TTL) {
       this.config.cache.ttl = parseInt(process.env.CACHE_TTL, 10);
     }
+    if (process.env.CACHE_BACKEND) {
+      this.config.cache.backend = process.env.CACHE_BACKEND;
+    }
     if (process.env.REDIS_URL) {
-      this.config.cache.redis = { url: process.env.REDIS_URL };
+      // Preserve existing redis config and only override url
+      if (!this.config.cache.redis) {
+        this.config.cache.redis = {};
+      }
+      this.config.cache.redis.url = process.env.REDIS_URL;
     }
 
     // Logging

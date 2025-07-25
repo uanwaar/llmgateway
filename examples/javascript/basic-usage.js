@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Basic JavaScript Usage Examples for LLM Gateway
  * 
@@ -5,16 +6,55 @@
  * using both native fetch and the OpenAI SDK compatibility mode.
  */
 
-// Example 1: Basic chat completion using fetch
-async function basicChatWithFetch() {
-  console.log('=== Basic Chat Completion with Fetch ===');
+// Example 0: Basic chat completion WITHOUT authorization header (recommended for .env setup)
+async function basicChatNoAuth() {
+  console.log('=== Basic Chat Completion (No Auth Required) ===');
   
   try {
     const response = await fetch('http://localhost:8080/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer your-api-key-here',
+        // No Authorization header - gateway will use .env provider keys automatically
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { 
+            role: 'user', 
+            content: 'Hello! This works without auth headers thanks to .env configuration.', 
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    console.log('Model used:', data.model);
+    console.log('Usage:', data.usage);
+    console.log('✅ SUCCESS: No auth header needed!');
+    
+  } catch (error) {
+    console.error('❌ Error:', error.message);
+  }
+}
+
+// Example 1: Basic chat completion using fetch (with authorization header)
+async function basicChatWithFetch() {
+  console.log('\n=== Basic Chat Completion with Auth Header ===');
+  
+  const apiKey = 'your-api-key-here'; // Replace with your actual API key
+  
+  try {
+    const response = await fetch('http://localhost:3000/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
@@ -234,12 +274,21 @@ async function multimodalExample() {
 // Main execution function
 async function runExamples() {
   console.log('LLM Gateway JavaScript Examples\n');
-  console.log('Make sure to:');
-  console.log('1. Start the LLM Gateway server (npm run dev)');
-  console.log('2. Replace "your-api-key-here" with your actual API key');
-  console.log('3. Configure provider API keys in your environment\n');
+  console.log('Setup Options:');
+  console.log('OPTION A (Recommended): Use .env file configuration');
+  console.log('  1. Copy .env.example to .env');
+  console.log('  2. Set OPENAI_API_KEY and GEMINI_API_KEY in .env');
+  console.log('  3. Start gateway: npm run dev');
+  console.log('  4. Run examples without auth headers! ✨');
+  console.log();
+  console.log('OPTION B: Use manual API keys');
+  console.log('  1. Replace "your-api-key-here" with your actual API key');
+  console.log('  2. Start gateway: npm run dev');
+  console.log('  3. Examples will use Authorization headers');
+  console.log();
 
-  // Run all examples
+  // Run all examples - starting with no-auth example
+  await basicChatNoAuth();  // This should work with .env configuration
   await basicChatWithFetch();
   await chatWithSystemPrompt();
   await usingOpenAISDK();
@@ -258,6 +307,7 @@ if (require.main === module) {
 
 // Export functions for use in other files
 module.exports = {
+  basicChatNoAuth,
   basicChatWithFetch,
   chatWithSystemPrompt,
   usingOpenAISDK,
@@ -273,9 +323,15 @@ module.exports = {
  * 1. Install dependencies:
  *    npm install openai
  * 
- * 2. Set up environment variables:
- *    export OPENAI_API_KEY="your-openai-key"
- *    export GEMINI_API_KEY="your-gemini-key"
+ * 2. Set up environment variables (choose one):
+ *    OPTION A: Set individual API keys in your shell:
+ *              export OPENAI_API_KEY="your-openai-key"
+ *              export GEMINI_API_KEY="your-gemini-key"
+ *    
+ *    OPTION B: Use .env file (recommended):
+ *              1. Copy .env.example to .env
+ *              2. Edit .env and set OPENAI_API_KEY and GEMINI_API_KEY
+ *              3. The gateway will automatically use these keys
  * 
  * 3. Start the LLM Gateway:
  *    npm run dev

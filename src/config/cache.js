@@ -39,10 +39,17 @@ class CacheConfig {
       if (!redis || !redis.url) {
         throw new Error('Redis URL is required when using Redis backend');
       }
-      if (typeof redis.keyPrefix !== 'string') {
+      
+      // Provide defaults for missing redis configuration
+      if (!redis.keyPrefix) {
+        this.config.redis.keyPrefix = 'llm_gateway:';
+      } else if (typeof redis.keyPrefix !== 'string') {
         throw new Error('Redis keyPrefix must be a string');
       }
-      if (typeof redis.db !== 'number' || redis.db < 0) {
+      
+      if (redis.db === undefined || redis.db === null) {
+        this.config.redis.db = 0;
+      } else if (typeof redis.db !== 'number' || redis.db < 0) {
         throw new Error('Redis db must be a non-negative number');
       }
     }

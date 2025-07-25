@@ -9,6 +9,12 @@
 GATEWAY_URL="http://localhost:8080/v1"
 API_KEY="your-api-key-here"  # Replace with your actual API key
 
+# Alternative: Use environment variables (recommended)
+# If you have configured the .env file with your API keys, you can run this script
+# without manually entering API keys. The gateway will use the provider keys
+# (OPENAI_API_KEY, GEMINI_API_KEY) from the .env file automatically.
+# In this case, you can use any value for API_KEY since the gateway handles authentication.
+
 # Colors for output (if terminal supports them)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -56,13 +62,15 @@ format_json() {
 print_header "LLM Gateway cURL Chat Completion Examples"
 echo "Make sure to:"
 echo "1. Start the LLM Gateway server (npm run dev)"
-echo "2. Replace 'your-api-key-here' with your actual API key"
-echo "3. Configure provider API keys in your environment"
+echo "2. OPTION A: Replace 'your-api-key-here' with your actual API key"
+echo "   OPTION B: Configure provider API keys in .env file (OPENAI_API_KEY, GEMINI_API_KEY)"
+echo "3. If using .env file, copy .env.example to .env and set your provider keys"
 echo ""
 
 # Example 1: Basic chat completion
 print_header "Example 1: Basic Chat Completion"
 
+# leave authorization header empty if using .env file
 RESPONSE=$(curl -s -X POST "${GATEWAY_URL}/chat/completions" \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer ${API_KEY}" \

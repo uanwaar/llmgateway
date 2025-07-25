@@ -1,11 +1,11 @@
 # Production environment configuration
 server:
-  port: 8000
+  port: 8080
   corsEnabled: true
   corsOrigins: []  # Set specific origins in production
 
 auth:
-  requireAuthHeader: true
+  requireAuthHeader: false  # Allow optional auth in production too
 
 providers:
   openai:

@@ -9,6 +9,11 @@
 GATEWAY_URL="http://localhost:8080/v1"
 API_KEY="your-api-key-here"  # Replace with your actual API key
 
+# Alternative: Use environment variables (recommended)
+# If you have configured the .env file with your API keys, you can run this script
+# without manually entering API keys. The gateway will use the provider keys
+# (OPENAI_API_KEY, GEMINI_API_KEY) from the .env file automatically.
+
 # Colors for output (if terminal supports them)
 RED='\033[0;31m'
 GREEN='\033[0;32m'

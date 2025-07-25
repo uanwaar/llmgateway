@@ -6,16 +6,92 @@
  * better user experience for longer responses.
  */
 
-// Example 1: Basic streaming with fetch and Server-Sent Events
-async function basicStreaming() {
-  console.log('=== Basic Streaming Example ===');
+// Example 0: Basic streaming WITHOUT authorization header (recommended for .env setup)
+async function basicStreamingNoAuth() {
+  console.log('=== Basic Streaming (No Auth Required) ===');
   
   try {
     const response = await fetch('http://localhost:8080/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer your-api-key-here',
+        // No Authorization header - gateway will use .env provider keys automatically
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'user',
+            content: 'Write a short story about a robot learning to paint.',
+          },
+        ],
+        stream: true,
+        max_tokens: 500,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    // Handle streaming response
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    console.log('✅ Streaming response (no auth needed):');
+    console.log('---');
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { done, value } = await reader.read();
+      
+      if (done) break;
+      
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      
+      buffer = lines.pop() || '';
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') {
+            console.log('\n---');
+            console.log('✅ Streaming completed successfully!');
+            return;
+          }
+          
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              process.stdout.write(content);
+            }
+          } catch (e) {
+            // Ignore JSON parse errors for incomplete chunks
+          }
+        }
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ Error:', error.message);
+  }
+}
+
+// Example 1: Basic streaming with fetch and Server-Sent Events (with auth header)
+async function basicStreaming() {
+  console.log('\n=== Basic Streaming with Auth Header ===');
+  
+  const apiKey = 'your-api-key-here'; // Replace with your actual API key
+  
+  try {
+    const response = await fetch('http://localhost:3000/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
@@ -443,11 +519,13 @@ async function runStreamingExamples() {
 
 // Run examples if this file is executed directly
 if (require.main === module) {
+  basicStreamingNoAuth().catch(console.error);
   runStreamingExamples().catch(console.error);
 }
 
 // Export functions and classes for use in other files
 module.exports = {
+  basicStreamingNoAuth,
   basicStreaming,
   streamingWithSDK,
   advancedStreaming,

@@ -12,9 +12,56 @@ const fs = require('fs');
 const path = require('path');
 const FormData = require('form-data');
 
-// Example 1: Basic audio transcription
+// Example 0: Basic audio transcription WITHOUT authorization header (recommended for .env setup)
+async function basicTranscriptionNoAuth() {
+  console.log('=== Basic Audio Transcription (No Auth Required) ===');
+  
+  // Note: You'll need an actual audio file for this to work
+  const audioFilePath = path.join(__dirname, 'sample-audio.mp3');
+  
+  // Check if audio file exists (create a placeholder message if not)
+  if (!fs.existsSync(audioFilePath)) {
+    console.log('Note: Audio file not found. Please add a sample audio file at:');
+    console.log(audioFilePath);
+    console.log('Supported formats: mp3, mp4, mpeg, mpga, m4a, wav, webm');
+    console.log('✅ This example will work once you provide an audio file - no API key needed!\n');
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append('file', fs.createReadStream(audioFilePath));
+    formData.append('model', 'whisper-1');
+    formData.append('language', 'en'); // Optional: specify language
+    formData.append('response_format', 'json'); // json, text, srt, verbose_json, vtt
+
+    const response = await fetch('http://localhost:8080/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        // No Authorization header - gateway will use .env provider keys automatically
+        ...formData.getHeaders(),
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('✅ Transcription result (no auth needed):', result.text);
+    
+    if (result.segments) {
+      console.log('Segments:', result.segments.length);
+    }
+  } catch (error) {
+    console.error('❌ Transcription error:', error.message);
+  }
+}
+
+// Example 1: Basic audio transcription (with authorization header)
 async function basicTranscription() {
-  console.log('=== Basic Audio Transcription ===');
+  console.log('\n=== Basic Audio Transcription with Auth Header ===');
   
   // Note: You'll need an actual audio file for this to work
   const audioFilePath = path.join(__dirname, 'sample-audio.mp3');
@@ -139,9 +186,50 @@ async function audioTranslation() {
   }
 }
 
-// Example 4: Text-to-speech synthesis
+// Example 4: Text-to-speech synthesis WITHOUT authorization header
+async function textToSpeechNoAuth() {
+  console.log('\n=== Text-to-Speech Synthesis (No Auth Required) ===');
+  
+  const textToSpeak = 'Hello! This is a demonstration of the text-to-speech ' +
+    'functionality in the LLM Gateway. The AI can convert this text into natural-sounding speech.';
+  
+  try {
+    const response = await fetch('http://localhost:8080/v1/audio/speech', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // No Authorization header - gateway will use .env provider keys automatically
+      },
+      body: JSON.stringify({
+        model: 'tts-1', // or 'tts-1-hd' for higher quality
+        input: textToSpeak,
+        voice: 'alloy', // alloy, echo, fable, onyx, nova, shimmer
+        response_format: 'mp3', // mp3, opus, aac, flac
+        speed: 1.0, // 0.25 to 4.0
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    // Get the audio data as buffer
+    const audioBuffer = await response.arrayBuffer();
+    
+    // Save to file
+    const outputPath = path.join(__dirname, 'generated-speech-noauth.mp3');
+    fs.writeFileSync(outputPath, Buffer.from(audioBuffer));
+    
+    console.log('✅ Speech generated (no auth needed) and saved to:', outputPath);
+    console.log('File size:', audioBuffer.byteLength, 'bytes');
+  } catch (error) {
+    console.error('❌ Text-to-speech error:', error.message);
+  }
+}
+
+// Example 5: Text-to-speech synthesis (with authorization header)
 async function textToSpeech() {
-  console.log('\n=== Text-to-Speech Synthesis ===');
+  console.log('\n=== Text-to-Speech Synthesis with Auth Header ===');
   
   const textToSpeak = 'Hello! This is a demonstration of the text-to-speech ' +
     'functionality in the LLM Gateway. The AI can convert this text into natural-sounding speech.';
@@ -403,8 +491,18 @@ function createSampleAudioFiles() {
 // Main execution function
 async function runAudioExamples() {
   console.log('LLM Gateway Audio Processing Examples\n');
-  console.log('These examples demonstrate audio transcription, translation, and TTS.');
-  console.log('Make sure the LLM Gateway is running and configured with audio providers.\n');
+  console.log('Setup Options:');
+  console.log('OPTION A (Recommended): Use .env file configuration');
+  console.log('  1. Copy .env.example to .env');
+  console.log('  2. Set OPENAI_API_KEY and GEMINI_API_KEY in .env');
+  console.log('  3. Start gateway: npm run dev');
+  console.log('  4. Run audio examples without auth headers! ✨');
+  console.log();
+  console.log('OPTION B: Use manual API keys');
+  console.log('  1. Replace "your-api-key-here" with your actual API key');
+  console.log('  2. Start gateway: npm run dev');
+  console.log('  3. Examples will use Authorization headers');
+  console.log();
 
   // Create sample files reminder
   createSampleAudioFiles();
@@ -415,7 +513,9 @@ async function runAudioExamples() {
     validateAudioFile(path.join(__dirname, file));
   });
 
-  // Run audio examples
+  // Run audio examples - starting with no-auth examples
+  await basicTranscriptionNoAuth();  // This should work with .env configuration
+  await textToSpeechNoAuth();        // This should work with .env configuration
   await basicTranscription();
   await detailedTranscription();
   await audioTranslation();
@@ -434,6 +534,8 @@ if (require.main === module) {
 
 // Export functions for use in other files
 module.exports = {
+  basicTranscriptionNoAuth,
+  textToSpeechNoAuth,
   basicTranscription,
   detailedTranscription,
   audioTranslation,

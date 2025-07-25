@@ -5,6 +5,7 @@ This document explains how to make requests to the LLM Gateway API and understan
 ## Table of Contents
 
 - [Overview](#overview)
+- [Authentication Requirements](#authentication-requirements)
 - [Request Validation Philosophy](#request-validation-philosophy)
 - [Chat Completions API](#chat-completions-api)
 - [Embeddings API](#embeddings-api)
@@ -21,6 +22,61 @@ The LLM Gateway uses **ultra-flexible validation** that:
 - ✅ **Allows** custom/unknown parameters for future compatibility
 - ✅ **Prevents** genuinely malformed requests
 - ✅ **Preserves** content exactly as sent (no sanitization of chat content)
+
+## Authentication Requirements
+
+The LLM Gateway supports **flexible authentication** with multiple configuration modes:
+
+### Default Configuration (No Authentication Required)
+- **Authentication is OPTIONAL by default** (`auth.requireAuthHeader: false`)
+- Clients can make requests **without Authorization headers**
+- Gateway automatically uses provider API keys from `.env` file:
+  - `OPENAI_API_KEY` for OpenAI models
+  - `GEMINI_API_KEY` for Gemini models
+
+### Authentication Options
+
+#### Option 1: No Authentication Header (Recommended for .env setup)
+```bash
+curl -X POST http://localhost:3000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"Hello"}]}'
+```
+
+#### Option 2: Client Provider Keys
+```bash
+curl -X POST http://localhost:3000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-your-openai-key" \
+  -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"Hello"}]}'
+```
+
+#### Option 3: Gateway API Keys (if configured)
+```bash
+curl -X POST http://localhost:3000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer gateway-api-key" \
+  -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"Hello"}]}'
+```
+
+### Supported Authentication Headers
+- `Authorization: Bearer <token>`
+- `X-API-Key: <key>`
+- `OpenAI-API-Key: <key>`
+
+### Client Provider Key Support
+- **OpenAI keys**: Starting with `sk-` (e.g., `sk-proj-abc123...`)
+- **Google API keys**: Starting with `AIza` (e.g., `AIzaSyC...`)
+- **Custom keys**: Any format, managed by gateway
+
+### Configuration Options
+To require authentication, set in your configuration:
+```yaml
+auth:
+  requireAuthHeader: true  # Makes authentication mandatory
+  allowClientKeys: true    # Allows client provider keys
+  mode: "hybrid"          # Supports both gateway and client keys
+```
 
 ## Request Validation Philosophy
 
@@ -279,11 +335,10 @@ The audio endpoints accept any parameters and forward them to the appropriate pr
 
 ### cURL Examples
 
-#### Basic Chat Completion
+#### Basic Chat Completion (No Auth Required)
 ```bash
 curl -X POST http://localhost:3000/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-api-key" \
   -d '{
     "model": "gpt-4o-mini",
     "messages": [
@@ -292,9 +347,22 @@ curl -X POST http://localhost:3000/v1/chat/completions \
   }'
 ```
 
-#### Windows Command Line (Recommended)
+#### With Client API Key
 ```bash
-echo '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"Hello!"}]}' | curl -X POST http://localhost:3000/v1/chat/completions -H "Content-Type: application/json" -H "Authorization: Bearer your-api-key" --data @-
+curl -X POST http://localhost:3000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-your-openai-key" \
+  -d '{
+    "model": "gpt-4o-mini",
+    "messages": [
+      {"role": "user", "content": "Hello!"}
+    ]
+  }'
+```
+
+#### Windows Command Line (No Auth)
+```bash
+echo '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"Hello!"}]}' | curl -X POST http://localhost:3000/v1/chat/completions -H "Content-Type: application/json" --data @-
 ```
 
 #### Complex Request with Custom Parameters
@@ -332,13 +400,13 @@ echo '{
 
 ### JavaScript Examples
 
-#### Using Fetch
+#### Using Fetch (No Auth Required)
 ```javascript
 const response = await fetch('http://localhost:3000/v1/chat/completions', {
   method: 'POST',
   headers: {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer your-api-key'
+    'Content-Type': 'application/json'
+    // No Authorization header needed when using .env configuration
   },
   body: JSON.stringify({
     model: 'gpt-4o-mini',
@@ -379,15 +447,15 @@ const completion = await openai.chat.completions.create({
 
 ### Python Examples
 
-#### Using Requests
+#### Using Requests (No Auth Required)
 ```python
 import requests
 
 response = requests.post(
     'http://localhost:3000/v1/chat/completions',
     headers={
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer your-api-key'
+        'Content-Type': 'application/json'
+        # No Authorization header needed when using .env configuration
     },
     json={
         'model': 'gpt-4o-mini',

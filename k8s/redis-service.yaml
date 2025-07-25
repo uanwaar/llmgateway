@@ -1,0 +1,18 @@
+# Redis service for LLM Gateway
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: llm-gateway
+  labels:
+    app: redis
+    component: cache
+spec:
+  type: ClusterIP
+  ports:
+  - port: 6379
+    targetPort: 6379
+    protocol: TCP
+    name: redis
+  selector:
+    app: redis

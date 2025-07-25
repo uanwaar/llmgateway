@@ -1,0 +1,9 @@
+# Kubernetes namespace for LLM Gateway
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: llm-gateway
+  labels:
+    name: llm-gateway
+    version: v1
+    component: gateway

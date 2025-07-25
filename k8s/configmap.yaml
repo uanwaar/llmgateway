@@ -1,0 +1,44 @@
+# ConfigMap for LLM Gateway configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llm-gateway-config
+  namespace: llm-gateway
+  labels:
+    app: llm-gateway
+    component: config
+data:
+  NODE_ENV: "production"
+  PORT: "8080"
+  LOG_LEVEL: "info"
+  CACHE_ENABLED: "true"
+  CACHE_BACKEND: "redis"
+  REDIS_URL: "redis://redis-service:6379"
+  RATE_LIMIT_ENABLED: "true"
+  AUTH_MODE: "hybrid"
+  
+  # Server configuration
+  SERVER_HOST: "0.0.0.0"
+  SERVER_TIMEOUT: "30000"
+  SERVER_KEEP_ALIVE_TIMEOUT: "5000"
+  SERVER_HEADERS_TIMEOUT: "6000"
+  
+  # Cache configuration
+  CACHE_TTL: "3600"
+  CACHE_MAX_SIZE: "1000"
+  CACHE_KEY_STRATEGY: "default"
+  
+  # Rate limiting configuration
+  RATE_LIMIT_WINDOW_MS: "900000"
+  RATE_LIMIT_MAX: "100"
+  
+  # Routing configuration
+  ROUTING_STRATEGY: "cost_optimized"
+  ROUTING_FAILOVER_ENABLED: "true"
+  ROUTING_HEALTH_CHECK_INTERVAL: "30000"
+  
+  # Logging configuration
+  LOGGING_FORMAT: "json"
+  LOGGING_CORRELATION_ID: "true"
+  LOGGING_REQUEST_LOGGING: "true"
+  LOGGING_ERROR_LOGGING: "true"
