@@ -1,7 +1,8 @@
 # Development environment configuration
 server:
-  port: 3000
-  corsOrigins: ["http://localhost:3000", "http://localhost:3001"]
+  port: 8080
+  corsOrigins: ["http://localhost:3000", "http://localhost:3001", "http://localhost:8080"]
+  rateLimitingEnabled: false  # Disable rate limiting completely in development
 
 logging:
   level: "debug"
@@ -11,8 +12,31 @@ cache:
   backend: "memory"
   ttl: 300  # 5 minutes for faster development
 
+# Very relaxed rate limits for development (when enabled)
 rateLimit:
-  max: 1000  # Higher limit for development
+  windowMs: 60000  # 1 minute
+  max: 100000  # 100,000 requests per minute (effectively unlimited)
+  
+  chat:
+    capacity: 50000  # 50,000 token burst
+    refillRate: 10000  # 10,000 tokens per minute
+    refillPeriod: 60000
+  
+  embeddings:
+    windowMs: 60000
+    max: 50000
+  
+  audio:
+    windowMs: 60000
+    max: 10000
+  
+  models:
+    windowMs: 1800000  # 30 minutes
+    max: 10  # More lenient for development but still restricted
+  
+  health:
+    windowMs: 1800000  # 30 minutes  
+    max: 10  # More lenient for development but still restricted
 
 providers:
   openai:

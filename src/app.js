@@ -62,7 +62,7 @@ function createApp() {
   }
 
   // Rate limiting
-  if (config.server.rateLimitingEnabled) {
+  if (config.server.rateLimitingEnabled !== false) {
     app.use(middleware.rateLimit);
   }
 

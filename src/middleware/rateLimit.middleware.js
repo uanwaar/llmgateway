@@ -325,50 +325,50 @@ function createSlidingWindowLimiter(options = {}, keyGenerator) {
 // Chat completion rate limiting (higher limits, token bucket for bursts)
 const chatRateLimit = createRateLimiter({
   strategy: STRATEGIES.TOKEN_BUCKET,
-  capacity: config.server.rateLimit?.chat?.capacity || 120,
-  refillRate: config.server.rateLimit?.chat?.refillRate || 60,
-  refillPeriod: 60000, // 1 minute
+  capacity: config.rateLimit?.chat?.capacity || 5000,
+  refillRate: config.rateLimit?.chat?.refillRate || 1000,
+  refillPeriod: config.rateLimit?.chat?.refillPeriod || 60000,
   tokensPerRequest: 1,
-  message: 'Too many chat requests, please slow down',
+  message: config.rateLimit?.chat?.message || 'Too many chat requests, please slow down',
 });
 
 // Embeddings rate limiting (moderate limits, fixed window)
 const embeddingsRateLimit = createRateLimiter({
   strategy: STRATEGIES.FIXED_WINDOW,
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: config.server.rateLimit?.embeddings || 30,
-  message: 'Too many embedding requests, please slow down',
+  windowMs: config.rateLimit?.embeddings?.windowMs || 60000,
+  max: config.rateLimit?.embeddings?.max || 1000,
+  message: config.rateLimit?.embeddings?.message || 'Too many embedding requests, please slow down',
 });
 
 // Audio processing rate limiting (strict limits, sliding window)
 const audioRateLimit = createRateLimiter({
   strategy: STRATEGIES.SLIDING_WINDOW,
-  windowMs: 5 * 60 * 1000, // 5 minutes
-  max: config.server.rateLimit?.audio || 20,
-  message: 'Too many audio requests, please slow down',
+  windowMs: config.rateLimit?.audio?.windowMs || 300000,
+  max: config.rateLimit?.audio?.max || 500,
+  message: config.rateLimit?.audio?.message || 'Too many audio requests, please slow down',
 });
 
 // Models listing rate limiting (relaxed)
 const modelsRateLimit = createRateLimiter({
   strategy: STRATEGIES.FIXED_WINDOW,
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: config.server.rateLimit?.models || 200,
-  message: 'Too many model listing requests',
+  windowMs: config.rateLimit?.models?.windowMs || 60000,
+  max: config.rateLimit?.models?.max || 2000,
+  message: config.rateLimit?.models?.message || 'Too many model listing requests',
 });
 
 // Health check rate limiting (very relaxed)
 const healthRateLimit = createRateLimiter({
   strategy: STRATEGIES.FIXED_WINDOW,
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: config.server.rateLimit?.health || 300,
-  message: 'Too many health check requests',
+  windowMs: config.rateLimit?.health?.windowMs || 60000,
+  max: config.rateLimit?.health?.max || 5000,
+  message: config.rateLimit?.health?.message || 'Too many health check requests',
 });
 
 // Default rate limiter (general API)
 const defaultRateLimit = createRateLimiter({
-  strategy: config.server.rateLimit?.defaultStrategy || STRATEGIES.FIXED_WINDOW,
-  windowMs: config.server.rateLimit?.windowMs || 15 * 60 * 1000,
-  max: config.server.rateLimit?.max || 100,
+  strategy: config.rateLimit?.defaultStrategy || STRATEGIES.FIXED_WINDOW,
+  windowMs: config.rateLimit?.windowMs || 900000,
+  max: config.rateLimit?.max || 10000,
 });
 
 /**

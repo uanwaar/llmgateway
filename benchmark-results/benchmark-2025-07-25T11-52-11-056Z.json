@@ -1,0 +1,288 @@
+{
+  "metadata": {
+    "timestamp": "2025-07-25T11:52:11.051Z",
+    "gatewayUrl": "http://localhost:8080",
+    "totalDuration": 73468,
+    "testCases": 6,
+    "providers": [
+      "openai",
+      "gemini"
+    ]
+  },
+  "results": {
+    "openai": {
+      "gpt-3.5-turbo": {
+        "simple": {
+          "model": "gpt-3.5-turbo",
+          "testCase": "Simple Query",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "explanation": {
+          "model": "gpt-3.5-turbo",
+          "testCase": "Technical Explanation",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "codeGeneration": {
+          "model": "gpt-3.5-turbo",
+          "testCase": "Code Generation",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "storytelling": {
+          "model": "gpt-3.5-turbo",
+          "testCase": "Creative Writing",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "reasoning": {
+          "model": "gpt-3.5-turbo",
+          "testCase": "Complex Reasoning",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "analysis": {
+          "model": "gpt-3.5-turbo",
+          "testCase": "Data Analysis",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        }
+      },
+      "gpt-4": {
+        "simple": {
+          "model": "gpt-4",
+          "testCase": "Simple Query",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "explanation": {
+          "model": "gpt-4",
+          "testCase": "Technical Explanation",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "codeGeneration": {
+          "model": "gpt-4",
+          "testCase": "Code Generation",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "storytelling": {
+          "model": "gpt-4",
+          "testCase": "Creative Writing",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "reasoning": {
+          "model": "gpt-4",
+          "testCase": "Complex Reasoning",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "analysis": {
+          "model": "gpt-4",
+          "testCase": "Data Analysis",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        }
+      },
+      "gpt-4-turbo": {
+        "simple": {
+          "model": "gpt-4-turbo",
+          "testCase": "Simple Query",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "explanation": {
+          "model": "gpt-4-turbo",
+          "testCase": "Technical Explanation",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "codeGeneration": {
+          "model": "gpt-4-turbo",
+          "testCase": "Code Generation",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "storytelling": {
+          "model": "gpt-4-turbo",
+          "testCase": "Creative Writing",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "reasoning": {
+          "model": "gpt-4-turbo",
+          "testCase": "Complex Reasoning",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "analysis": {
+          "model": "gpt-4-turbo",
+          "testCase": "Data Analysis",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        }
+      }
+    },
+    "gemini": {
+      "gemini-pro": {
+        "simple": {
+          "model": "gemini-pro",
+          "testCase": "Simple Query",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "explanation": {
+          "model": "gemini-pro",
+          "testCase": "Technical Explanation",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "codeGeneration": {
+          "model": "gemini-pro",
+          "testCase": "Code Generation",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "storytelling": {
+          "model": "gemini-pro",
+          "testCase": "Creative Writing",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "reasoning": {
+          "model": "gemini-pro",
+          "testCase": "Complex Reasoning",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "analysis": {
+          "model": "gemini-pro",
+          "testCase": "Data Analysis",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        }
+      },
+      "gemini-pro-vision": {
+        "simple": {
+          "model": "gemini-pro-vision",
+          "testCase": "Simple Query",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "explanation": {
+          "model": "gemini-pro-vision",
+          "testCase": "Technical Explanation",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "codeGeneration": {
+          "model": "gemini-pro-vision",
+          "testCase": "Code Generation",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "storytelling": {
+          "model": "gemini-pro-vision",
+          "testCase": "Creative Writing",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "reasoning": {
+          "model": "gemini-pro-vision",
+          "testCase": "Complex Reasoning",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "analysis": {
+          "model": "gemini-pro-vision",
+          "testCase": "Data Analysis",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        }
+      },
+      "gemini-1.5-pro": {
+        "simple": {
+          "model": "gemini-1.5-pro",
+          "testCase": "Simple Query",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "explanation": {
+          "model": "gemini-1.5-pro",
+          "testCase": "Technical Explanation",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "codeGeneration": {
+          "model": "gemini-1.5-pro",
+          "testCase": "Code Generation",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "storytelling": {
+          "model": "gemini-1.5-pro",
+          "testCase": "Creative Writing",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "reasoning": {
+          "model": "gemini-1.5-pro",
+          "testCase": "Complex Reasoning",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "analysis": {
+          "model": "gemini-1.5-pro",
+          "testCase": "Data Analysis",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        }
+      }
+    }
+  },
+  "analysis": {
+    "bestTokenThroughput": null,
+    "modelPerformance": {},
+    "testCaseInsights": {}
+  },
+  "recommendations": []
+}

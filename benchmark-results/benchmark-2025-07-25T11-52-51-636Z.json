@@ -1,0 +1,112 @@
+{
+  "metadata": {
+    "timestamp": "2025-07-25T11:52:51.633Z",
+    "gatewayUrl": "http://localhost:8080",
+    "totalDuration": 24360,
+    "testCases": 6,
+    "providers": [
+      "openai",
+      "gemini"
+    ]
+  },
+  "results": {
+    "openai": {
+      "gpt-4o-mini": {
+        "simple": {
+          "model": "gpt-4o-mini",
+          "testCase": "Simple Query",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "explanation": {
+          "model": "gpt-4o-mini",
+          "testCase": "Technical Explanation",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "codeGeneration": {
+          "model": "gpt-4o-mini",
+          "testCase": "Code Generation",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "storytelling": {
+          "model": "gpt-4o-mini",
+          "testCase": "Creative Writing",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "reasoning": {
+          "model": "gpt-4o-mini",
+          "testCase": "Complex Reasoning",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "analysis": {
+          "model": "gpt-4o-mini",
+          "testCase": "Data Analysis",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        }
+      }
+    },
+    "gemini": {
+      "gemini-1.5-flash": {
+        "simple": {
+          "model": "gemini-1.5-flash",
+          "testCase": "Simple Query",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "explanation": {
+          "model": "gemini-1.5-flash",
+          "testCase": "Technical Explanation",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "codeGeneration": {
+          "model": "gemini-1.5-flash",
+          "testCase": "Code Generation",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "storytelling": {
+          "model": "gemini-1.5-flash",
+          "testCase": "Creative Writing",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "reasoning": {
+          "model": "gemini-1.5-flash",
+          "testCase": "Complex Reasoning",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        },
+        "analysis": {
+          "model": "gemini-1.5-flash",
+          "testCase": "Data Analysis",
+          "status": "FAILED",
+          "successRate": 0,
+          "error": "All requests failed"
+        }
+      }
+    }
+  },
+  "analysis": {
+    "bestTokenThroughput": null,
+    "modelPerformance": {},
+    "testCaseInsights": {}
+  },
+  "recommendations": []
+}
