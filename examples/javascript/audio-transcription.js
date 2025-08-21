@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * JavaScript Audio Examples for LLM Gateway
  * 
@@ -41,6 +42,7 @@ async function basicTranscriptionNoAuth() {
         // No Authorization header - gateway will use .env provider keys automatically
         ...formData.getHeaders(),
       },
+      duplex: 'half',
       body: formData,
     });
 
@@ -87,6 +89,7 @@ async function basicTranscription() {
         'Authorization': 'Bearer your-api-key-here',
         ...formData.getHeaders(),
       },
+      duplex: 'half',
       body: formData,
     });
 
@@ -131,6 +134,7 @@ async function detailedTranscription() {
         'Authorization': 'Bearer your-api-key-here',
         ...formData.getHeaders(),
       },
+      duplex: 'half',
       body: formData,
     });
 
@@ -176,6 +180,7 @@ async function audioTranslation() {
         'Authorization': 'Bearer your-api-key-here',
         ...formData.getHeaders(),
       },
+      duplex: 'half',
       body: formData,
     });
 
@@ -382,6 +387,7 @@ async function batchAudioProcessing() {
           'Authorization': 'Bearer your-api-key-here',
           ...formData.getHeaders(),
         },
+        duplex: 'half',
         body: formData,
       });
 

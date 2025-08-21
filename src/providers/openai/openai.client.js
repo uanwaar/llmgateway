@@ -184,9 +184,32 @@ class OpenAIClient {
 
     const formData = new FormData();
     
-    // Add file
+    // Add file (support Buffer, stream, or multer object)
     if (request.file) {
-      formData.append('file', request.file, 'audio');
+      const file = request.file;
+      let value = file;
+      let options = undefined;
+      
+      if (Buffer.isBuffer(file)) {
+        value = file;
+        options = {
+          filename: 'audio',
+          contentType: request.mimetype || 'application/octet-stream',
+        };
+      } else if (file?.buffer && Buffer.isBuffer(file.buffer)) {
+        value = file.buffer;
+        options = {
+          filename: file.originalname || 'audio',
+          contentType: file.mimetype || 'application/octet-stream',
+        };
+      }
+      
+      if (options) {
+        formData.append('file', value, options);
+      } else {
+        // Fallback: let form-data try to handle streams/strings
+        formData.append('file', value, file.originalname || 'audio');
+      }
     }
 
     // Add other parameters
@@ -224,9 +247,31 @@ class OpenAIClient {
 
     const formData = new FormData();
     
-    // Add file
+    // Add file (support Buffer, stream, or multer object)
     if (request.file) {
-      formData.append('file', request.file, 'audio');
+      const file = request.file;
+      let value = file;
+      let options = undefined;
+      
+      if (Buffer.isBuffer(file)) {
+        value = file;
+        options = {
+          filename: 'audio',
+          contentType: request.mimetype || 'application/octet-stream',
+        };
+      } else if (file?.buffer && Buffer.isBuffer(file.buffer)) {
+        value = file.buffer;
+        options = {
+          filename: file.originalname || 'audio',
+          contentType: file.mimetype || 'application/octet-stream',
+        };
+      }
+      
+      if (options) {
+        formData.append('file', value, options);
+      } else {
+        formData.append('file', value, file.originalname || 'audio');
+      }
     }
 
     // Add other parameters

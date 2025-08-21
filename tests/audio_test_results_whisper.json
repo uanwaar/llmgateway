@@ -1,0 +1,36 @@
+[
+  {
+    "test": "audio_test_1",
+    "file": "11s.wav",
+    "file_duration_seconds": "unknown",
+    "file_size_mb": "0.36",
+    "http_status": 200,
+    "processing_time_ms": 3916,
+    "processing_time_seconds": "3.916",
+    "response_size_bytes": 562,
+    "start_timestamp": "2025-08-20T10:28:04.595Z",
+    "end_timestamp": "2025-08-20T10:28:08.511Z",
+    "timestamp": "2025-08-20T10:28:08.513Z",
+    "status": "success",
+    "transcribed_text": "Are you currently sitting on a big pile of cash right now waiting for a pullback in the market? Or are you all in invested 100% or maybe even leveraged beyond that?",
+    "character_count": 164,
+    "word_count": 32
+  },
+  {
+    "test": "audio_test_2",
+    "file": "20s.wav",
+    "file_duration_seconds": "unknown",
+    "file_size_mb": "0.63",
+    "http_status": 200,
+    "processing_time_ms": 3721,
+    "processing_time_seconds": "3.721",
+    "response_size_bytes": 582,
+    "start_timestamp": "2025-08-20T10:28:10.538Z",
+    "end_timestamp": "2025-08-20T10:28:14.258Z",
+    "timestamp": "2025-08-20T10:28:14.259Z",
+    "status": "success",
+    "transcribed_text": "to build up in the next few years. We're no longer the great military power that we were and we can't afford to be. But we're not insignificant. But in terms of soft power...",
+    "character_count": 174,
+    "word_count": 34
+  }
+]

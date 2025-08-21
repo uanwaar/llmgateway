@@ -14,7 +14,9 @@
       "Bash(npm run:*)",
       "Bash(find:*)",
       "Bash(tskill:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(mv:*)",
+      "Bash(dir:*)"
     ],
     "deny": []
   }

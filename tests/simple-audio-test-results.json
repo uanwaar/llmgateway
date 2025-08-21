@@ -1,0 +1,45 @@
+{
+  "timestamp": "2025-08-20T07:28:03.484Z",
+  "gateway_url": "http://localhost:8080",
+  "test_file": "short 20s.wav",
+  "test_config": {
+    "name": "Basic JSON Response",
+    "params": {
+      "model": "whisper-1",
+      "response_format": "json",
+      "language": "en"
+    }
+  },
+  "file_info": {
+    "valid": true,
+    "size": 0.6311454772949219,
+    "extension": ".wav"
+  },
+  "result": {
+    "success": true,
+    "status": 200,
+    "responseTime": 4996,
+    "result": {
+      "id": "resp_1755674883471_9c1hpd2pl",
+      "provider": "openai",
+      "model": "whisper-1",
+      "object": "transcription",
+      "created": 1755674883,
+      "text": "to build up in the next few years. We're no longer the great military power that we were and we can't afford to be. But we're not insignificant. But in terms of soft power...",
+      "metadata": {
+        "provider_response": {
+          "text": "to build up in the next few years. We're no longer the great military power that we were and we can't afford to be. But we're not insignificant. But in terms of soft power...",
+          "usage": {
+            "type": "duration",
+            "seconds": 21
+          }
+        },
+        "cached": false
+      }
+    },
+    "error": null,
+    "config": "Basic JSON Response"
+  },
+  "total_time_ms": 5001,
+  "success": true
+}

@@ -39,8 +39,14 @@ const upload = multer({
 // Speech-to-text transcription
 router.post('/transcriptions',
   rateLimitMiddleware.audio,
+  // Multer must run before validation so req.file is populated
   upload.single('file'),
-  validationMiddleware(validationMiddleware.schemas.audioTranscription),
+  // Disable JSON content-type enforcement and size check for multipart
+  validationMiddleware(validationMiddleware.schemas.audioTranscription, {
+    validateContentType: false,
+    validateSize: false,
+    allowUnknown: true,
+  }),
   asyncCatch(AudioController.createTranscription),
 );
 

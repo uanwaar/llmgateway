@@ -227,24 +227,57 @@ async function getEmbeddings() {
   console.log(response.data.data[0].embedding);
 }
 
-// Audio transcription
+// Audio transcription (Axios + form-data)
 async function transcribeAudio() {
   const FormData = require('form-data');
   const fs = require('fs');
-  
+
   const form = new FormData();
   form.append('file', fs.createReadStream('audio.mp3'));
   form.append('model', 'whisper-1');
   form.append('language', 'en');
-  
+
   const response = await axios.post('http://localhost:8080/v1/audio/transcriptions', form, {
     headers: {
       ...form.getHeaders(),
-      'Authorization': 'Bearer your-api-key'
-    }
+      'Authorization': 'Bearer your-api-key',
+    },
   });
   console.log(response.data.text);
 }
+
+// Audio transcription (Node 18+ fetch with native FormData/Blob)
+async function transcribeAudioWithFetch() {
+  const fs = require('fs');
+  const path = require('path');
+
+  const filePath = 'audio.mp3';
+  const ext = path.extname(filePath).toLowerCase();
+  const mime = ext === '.wav' ? 'audio/wav'
+    : ext === '.mp3' ? 'audio/mpeg'
+    : ext === '.m4a' ? 'audio/m4a'
+    : ext === '.webm' ? 'audio/webm'
+    : 'application/octet-stream';
+
+  const data = new FormData();
+  const buf = fs.readFileSync(filePath);
+  data.append('file', new Blob([buf], { type: mime }), path.basename(filePath));
+  data.append('model', 'whisper-1');
+  data.append('language', 'en');
+
+  const res = await fetch('http://localhost:8080/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer your-api-key' },
+    body: data,
+  });
+  const json = await res.json();
+  console.log(json.text);
+}
+
+// Note:
+// - Field name must be 'file'. The server reads the upload from req.file (multer).
+// - If you use fetch with form-data and Readable streams, set { duplex: 'half' } on fetch
+//   and include form.getHeaders() to avoid "Unexpected end of form" in Node's undici.
 ```
 
 ### Python

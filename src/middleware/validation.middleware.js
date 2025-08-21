@@ -195,14 +195,14 @@ const schemas = {
   // Audio transcription schema
   audioTranscription: {
     body: Joi.object({
-      file: Joi.any().required(), // File will be handled by multer
+      // IMPORTANT: Do NOT validate `file` here; multer provides it on req.file
       model: Joi.string().default('whisper-1'),
       language: Joi.string().length(2), // ISO-639-1 language code
       prompt: Joi.string(),
       response_format: Joi.string()
         .valid('json', 'text', 'srt', 'verbose_json', 'vtt').default('json'),
       temperature: Joi.number().min(0).max(1).default(0),
-    }),
+    }).unknown(true), // Allow additional multipart fields
   },
   
   // Audio speech synthesis schema

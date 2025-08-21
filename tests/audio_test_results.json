@@ -1,0 +1,53 @@
+[
+  {
+    "test": "audio_test_1",
+    "file": "11s.wav",
+    "file_duration_seconds": "unknown",
+    "file_size_mb": "0.36",
+    "http_status": 200,
+    "processing_time_ms": 4295,
+    "processing_time_seconds": "4.295",
+    "response_size_bytes": 754,
+    "start_timestamp": "2025-08-20T11:37:01.309Z",
+    "end_timestamp": "2025-08-20T11:37:05.603Z",
+    "timestamp": "2025-08-20T11:37:05.606Z",
+    "status": "success",
+    "transcribed_text": "Are you currently sitting on a big pile of cash right now waiting for a pullback in the market, or are you all in, invested 100% or maybe even leveraged beyond that? Well, some interesting findings right",
+    "character_count": 203,
+    "word_count": 37
+  },
+  {
+    "test": "audio_test_2",
+    "file": "20s.wav",
+    "file_duration_seconds": "unknown",
+    "file_size_mb": "0.63",
+    "http_status": 200,
+    "processing_time_ms": 3819,
+    "processing_time_seconds": "3.819",
+    "response_size_bytes": 906,
+    "start_timestamp": "2025-08-20T11:37:07.635Z",
+    "end_timestamp": "2025-08-20T11:37:11.454Z",
+    "timestamp": "2025-08-20T11:37:11.455Z",
+    "status": "success",
+    "transcribed_text": "to build up in the next few years. We're no longer the great military power that we were, and we can't afford to be. But we're not insignificant. But in terms of soft power... BBC Sounds. Music, radio, podcasts. Hello, I'm Amol Rajan and this is the latest Amol Rajan Interviews.",
+    "character_count": 279,
+    "word_count": 51
+  },
+  {
+    "test": "audio_test_3",
+    "file": "3s.wav",
+    "file_duration_seconds": "unknown",
+    "file_size_mb": "0.12",
+    "http_status": 200,
+    "processing_time_ms": 1979,
+    "processing_time_seconds": "1.979",
+    "response_size_bytes": 441,
+    "start_timestamp": "2025-08-20T11:37:13.482Z",
+    "end_timestamp": "2025-08-20T11:37:15.460Z",
+    "timestamp": "2025-08-20T11:37:15.461Z",
+    "status": "success",
+    "transcribed_text": "right now came out from Bank of America's recent",
+    "character_count": 48,
+    "word_count": 9
+  }
+]
