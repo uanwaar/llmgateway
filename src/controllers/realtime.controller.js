@@ -60,4 +60,16 @@ function handleUpgrade(req, socket, head) {
   });
 }
 
-module.exports = { handleUpgrade };
+function close() {
+  try {
+    // Terminate any active clients first
+    if (wss && wss.clients) {
+      for (const client of wss.clients) {
+        try { client.close(); } catch (e) { /* ignore */ }
+      }
+    }
+  } catch (e) { /* ignore */ }
+  try { wss.close(); } catch (e) { /* ignore */ }
+}
+
+module.exports = { handleUpgrade, close };

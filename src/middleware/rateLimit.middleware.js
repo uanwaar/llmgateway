@@ -106,6 +106,8 @@ class SlidingWindowLimiter {
 // Storage for different limiters
 const tokenBuckets = new Map();
 const slidingWindowLimiters = new Map();
+// Timers for periodic cleanup tasks (kept here so stop() can clear them)
+const periodicTimers = [];
 
 /**
  * Create rate limiter based on strategy and configuration
@@ -269,8 +271,9 @@ function createSlidingWindowLimiter(options = {}, keyGenerator) {
     const limiter = new SlidingWindowLimiter(windowSize, maxRequests);
     slidingWindowLimiters.set(limiterId, limiter);
     
-    // Periodic cleanup
-    setInterval(() => limiter.cleanup(), windowSize);
+  // Periodic cleanup - keep timer reference so it can be cleared during shutdown
+  const t = setInterval(() => limiter.cleanup(), windowSize);
+  periodicTimers.push(t);
   }
   
   const limiter = slidingWindowLimiters.get(limiterId);
@@ -417,7 +420,14 @@ function cleanup() {
 }
 
 // Periodic cleanup every hour
-setInterval(cleanup, 60 * 60 * 1000);
+periodicTimers.push(setInterval(cleanup, 60 * 60 * 1000));
+
+function stop() {
+  for (const t of periodicTimers) {
+    try { clearInterval(t); } catch (e) { /* ignore */ }
+  }
+  periodicTimers.length = 0;
+}
 
 module.exports = defaultRateLimit;
 module.exports.chat = chatRateLimit;
@@ -429,3 +439,4 @@ module.exports.adaptive = createAdaptiveRateLimiter;
 module.exports.createCustom = createRateLimiter;
 module.exports.STRATEGIES = STRATEGIES;
 module.exports.cleanup = cleanup;
+module.exports.stop = stop;

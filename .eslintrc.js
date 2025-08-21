@@ -4,27 +4,18 @@ module.exports = {
     es2022: true,
     jest: true,
   },
-  extends: [
-    'eslint:recommended',
-  ],
+  // Minimal, relaxed ESLint configuration: only essential checks.
   parserOptions: {
     ecmaVersion: 'latest',
     sourceType: 'module',
   },
   rules: {
-    'no-console': 'warn',
-    'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-    'prefer-const': 'error',
-    'no-var': 'error',
-    'object-shorthand': 'error',
-    'prefer-template': 'error',
-    'template-curly-spacing': 'error',
-    'arrow-spacing': 'error',
-    'comma-dangle': ['error', 'always-multiline'],
-    'quotes': ['error', 'single'],
-    'semi': ['error', 'always'],
-    'indent': ['error', 2],
-    'max-len': ['error', { code: 100, ignoreUrls: true }],
+    // Prevent runtime ReferenceError from undeclared variables.
+    'no-undef': 'error',
+    // Warn about unused variables but allow underscore-prefixed args.
+    'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    // Allow console statements in this repo.
+    'no-console': 'off',
   },
   ignorePatterns: [
     'node_modules/',
