@@ -21,7 +21,7 @@ Quick links
 ## Phase 1 — Foundations
 
 ### T01 — Read and align with design docs
-- Status: Todo | Effort: S
+- Status: Done | Effort: S
 - Description: Read the realtime plan and provider docs. Confirm model list and VAD defaults.
 - Files: (read-only)
   - `docs/realtimeapi-enhancement.md`
@@ -32,7 +32,7 @@ Quick links
 - Acceptance: You can summarize the unified WS event model and provider mappings in 3–5 bullets in a comment in `src/services/realtime.service.js` once created.
 
 ### T02 — Config plumbing for realtime
-- Status: Todo | Effort: S
+- Status: Done | Effort: S
 - Description: Add `realtime` config block (models, audio, vad, security, limits) and expose via `src/config/index.js`.
 - Files (modify/create):
   - Modify: `config/development.yaml`, `config/production.yaml`, `config/test.yaml`, `config/default.yaml`
@@ -47,7 +47,7 @@ Quick links
   - Unit test stub can require `src/config/index.js` without throwing.
 
 ### T03 — WebSocket route & server upgrade wiring
-- Status: Todo | Effort: M
+- Status: Done | Effort: M
 - Description: Add WS endpoint `ws(s)://<host>/v1/realtime/transcribe`. Use Node HTTP server upgrade (not Express route) and pass to controller.
 - Files:
   - Modify: `src/server.js` (HTTP → WS upgrade listener, path match `/v1/realtime/transcribe`)
@@ -62,7 +62,7 @@ Quick links
   - Non-authorized connections are rejected with an error JSON and closed.
 
 ### T04 — Session service and types
-- Status: Todo | Effort: M
+- Status: Done | Effort: M
 - Description: Implement `RealtimeSession` lifecycle, session registry, idle/TTL timers, and basic event relay stubs.
 - Files:
   - Create: `src/services/realtime.service.js`
@@ -74,6 +74,14 @@ Quick links
 - Acceptance:
   - Sessions tracked in-memory with max idle enforcement from config.
   - Graceful close path logs and cleans up registry.
+
+Notes (Phase 1 completed):
+- Implemented config block and surfaced via `src/config/index.js`.
+- Added `ws` dependency and wired HTTP upgrade handler in `src/server.js` to route `/v1/realtime/transcribe` to the controller.
+- Created `src/controllers/realtime.controller.js` (WebSocketServer noServer) with a basic auth gate and session creation.
+- Created `src/services/realtime.service.js` with in-memory session registry, idle-timeout cleanup, and simple `session.update` → `session.updated` flow.
+- Added example `examples/javascript/realtime-smoke.js` which connects to the gateway, verifies `session.created` and `session.updated`, and exits with code 0 on success.
+- Local dev smoke test run: started server on port 8081 and ran the example; observed expected events.
 
 ---
 

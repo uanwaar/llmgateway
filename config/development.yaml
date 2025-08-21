@@ -6,6 +6,9 @@ server:
 
 logging:
   level: "debug"
+
+realtime:
+  enabled: true
   format: "text"
 
 cache:

@@ -303,3 +303,47 @@ security:
   cors:
     credentials: true
   requestSizeLimit: "10mb"
+
+# Realtime feature configuration (gateway-level)
+realtime:
+  enabled: false
+  models:
+    - id: gpt-4o-realtime-preview-2025-06-03
+      provider: openai
+      input:
+        sample_rate_hz: 24000
+        mime_type: "audio/pcm;rate=24000"
+      vad_default: server_vad
+    - id: gpt-4o-mini-realtime
+      provider: openai
+      input:
+        sample_rate_hz: 24000
+        mime_type: "audio/pcm;rate=24000"
+      vad_default: server_vad
+    - id: gemini-live-2.5-flash-preview
+      provider: gemini
+      input:
+        sample_rate_hz: 16000
+        mime_type: "audio/pcm;rate=16000"
+      vad_default: server_vad
+  audio:
+    max_buffer_ms: 5000
+    chunk_target_ms: 50
+    max_chunk_bytes: 32768
+  vad:
+    server_vad:
+      interrupt_response: true
+      silence_duration_ms: 500
+      prefix_padding_ms: 50
+    semantic_vad:
+      interrupt_response: true
+      eagerness: auto
+  security:
+    allow_client_ephemeral_tokens: true
+    max_session_minutes: 15
+    max_idle_seconds: 60
+  limits:
+    max_sessions_per_api_key: 5
+    max_concurrent_sessions: 100
+    rpm_per_api_key: 120
+    apm_audio_seconds_per_min: 180

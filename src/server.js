@@ -13,6 +13,10 @@ const https = require('https');
 const fs = require('fs');
 const config = require('./config');
 const logger = require('./utils/logger');
+const url = require('url');
+
+// Lazily required to avoid circular deps if any
+let realtimeController;
 
 let server = null;
 
@@ -61,6 +65,29 @@ async function start(app) {
         ssl: config.server.ssl?.enabled || false,
       });
       resolve();
+    });
+
+    // WebSocket upgrade for realtime transcription
+    server.on('upgrade', (req, socket, head) => {
+      try {
+        const pathname = url.parse(req.url).pathname;
+        if (logger && typeof logger.debug === 'function') {
+          logger.debug('WS upgrade request', { pathname });
+        }
+        if (pathname === '/v1/realtime/transcribe') {
+          if (!config.realtime?.enabled) {
+            socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+            return socket.destroy();
+          }
+          if (!realtimeController) {
+            realtimeController = require('./controllers/realtime.controller');
+          }
+          return realtimeController.handleUpgrade(req, socket, head);
+        }
+      } catch (err) {
+        logger.error('WS upgrade error', { error: err.message });
+        try { socket.destroy(); } catch (e) { logger.warn('WS upgrade socket destroy failed'); }
+      }
     });
 
     // Handle server shutdown gracefully

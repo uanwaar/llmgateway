@@ -20,6 +20,9 @@ cache:
 
 logging:
   level: "error"  # Minimal logging during tests
+  # Adding realtime block for deterministic behavior during tests
+realtime:
+  enabled: true
 
 rateLimit:
   max: 10000  # High limit for tests

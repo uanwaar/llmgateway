@@ -6,20 +6,31 @@ How to use
 - What to enter: Date, task IDs (from `realtime-transcription.tasks.md`), brief notes, links to PRs/commits/logs.
 
 ## Current Summary
-- Feature flag: realtime.enabled = (unset)
-- WS path: /v1/realtime/transcribe — (not wired)
+- Feature flag: realtime.enabled = (development=true, production=false)
+- WS path: /v1/realtime/transcribe — wired (handshake-only Phase 1)
 - Providers: OpenAI (WS) — (not integrated), Gemini Live — (not integrated)
 - VAD modes: server_vad (default), semantic_vad (OpenAI), manual — (not implemented)
 
 ## Milestones
-- [ ] M1: WS endpoint returns session.created (T03)
+- [x] M1: WS endpoint returns session.created (T03) — Phase 1 complete
 - [ ] M2: OpenAI path end-to-end transcript (T05)
 - [ ] M3: Gemini path end-to-end transcript (T06)
 - [ ] M4: Limits/metrics/logging in place (T10–T11)
 - [ ] M5: Docs, example, and smoke tests (T13–T15)
 
 ## Recent Updates
-- 2025-08-21: Created tasks plan and status tracker. (No implementation started)
+- 2025-08-21: Phase 1 - Realtime handshake implemented. Added config plumbing, WS upgrade handler, minimal controller and session service. Dev smoke test (examples/javascript/realtime-smoke.js) connected to the gateway and verified session.created → session.updated.
+
+Details:
+- `package.json`: added `ws@^8.17.0`.
+- `config/default.yaml`: added `realtime` block (enabled=false by default); `config/development.yaml` enables realtime for local development.
+- `src/config/index.js`: realtime schema/ defaults validated and surfaced.
+- `src/server.js`: added HTTP upgrade listener for `/v1/realtime/transcribe` (safe reject when disabled).
+- `src/controllers/realtime.controller.js`: WebSocketServer (noServer) with basic auth gate; emits `session.created` and stubs message/close handling.
+- `src/services/realtime.service.js`: in-memory session registry, idle-timeout cleanup, simple `session.update` → `session.updated` flow.
+
+Smoke test:
+- Ran example `examples/javascript/realtime-smoke.js` against local server on port 8081; observed `session.created` and `session.updated` events.
 
 ## Blockers
 - None

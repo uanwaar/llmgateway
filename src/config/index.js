@@ -64,6 +64,46 @@ const configSchema = Joi.object({
     level: Joi.string().valid('error', 'warn', 'info', 'debug').default('info'),
     format: Joi.string().valid('json', 'text').default('json'),
   }).required(),
+
+  realtime: Joi.object({
+    enabled: Joi.boolean().default(false),
+    models: Joi.array().items(Joi.object({
+      id: Joi.string().required(),
+      provider: Joi.string().valid('openai', 'gemini').required(),
+      input: Joi.object({
+        sample_rate_hz: Joi.number().valid(16000, 24000).required(),
+        mime_type: Joi.string().required(),
+      }).required(),
+      vad_default: Joi.string().valid('server_vad', 'semantic_vad', 'manual').default('server_vad'),
+    })).default([]),
+    audio: Joi.object({
+      max_buffer_ms: Joi.number().positive().default(5000),
+      chunk_target_ms: Joi.number().positive().default(50),
+      max_chunk_bytes: Joi.number().positive().default(32768),
+    }).default(),
+    vad: Joi.object({
+      server_vad: Joi.object({
+        interrupt_response: Joi.boolean().default(true),
+        silence_duration_ms: Joi.number().positive().default(500),
+        prefix_padding_ms: Joi.number().positive().default(50),
+      }).default(),
+      semantic_vad: Joi.object({
+        interrupt_response: Joi.boolean().default(true),
+        eagerness: Joi.string().valid('low', 'auto', 'high').default('auto'),
+      }).default(),
+    }).default(),
+    security: Joi.object({
+      allow_client_ephemeral_tokens: Joi.boolean().default(true),
+      max_session_minutes: Joi.number().positive().default(15),
+      max_idle_seconds: Joi.number().positive().default(60),
+    }).default(),
+    limits: Joi.object({
+      max_sessions_per_api_key: Joi.number().positive().default(5),
+      max_concurrent_sessions: Joi.number().positive().default(100),
+      rpm_per_api_key: Joi.number().positive().default(120),
+      apm_audio_seconds_per_min: Joi.number().positive().default(180),
+    }).default(),
+  }).required(),
 });
 
 class ConfigManager {
