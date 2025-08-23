@@ -16,7 +16,11 @@
       "Bash(tskill:*)",
       "Bash(curl:*)",
       "Bash(mv:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(grep:*)",
+      "Bash(ffmpeg:*)",
+      "Bash(sox:*)",
+      "Bash(where:*)"
     ],
     "deny": []
   }

@@ -182,10 +182,21 @@ class ConfigManager {
    */
   applyEnvironmentVariables() {
     // Server configuration
-    if (process.env.GATEWAY_PORT) {
-      this.config.server.port = parseInt(process.env.GATEWAY_PORT, 10);
+    // Support GATEWAY_PORT or PORT; safely parse and ignore invalid values
+    const rawPort = process.env.GATEWAY_PORT ?? process.env.PORT;
+    if (rawPort !== undefined) {
+      const cleaned = String(rawPort).trim().replace(/['"]/g, '');
+      const parsed = Number.parseInt(cleaned, 10);
+      if (Number.isInteger(parsed) && parsed > 0 && parsed <= 65535) {
+        this.config.server.port = parsed;
+      }
+      // If invalid, keep existing config value to avoid validation failure
     }
-    if (process.env.HOST) {
+
+    // Host override: accept GATEWAY_HOST or HOST
+    if (process.env.GATEWAY_HOST) {
+      this.config.server.host = process.env.GATEWAY_HOST;
+    } else if (process.env.HOST) {
       this.config.server.host = process.env.HOST;
     }
 

@@ -41,21 +41,26 @@ Features:
 ## Connection Architecture
 
 ### WebSocket Endpoint
+
+> **Note**: While the API operates over WebSockets, it is **strongly recommended to use the official Google GenAI SDKs** (e.g., for Node.js, Python). The SDKs handle the complex requirements of authentication, connection, and message formatting, which is difficult to implement correctly from scratch.
+
 ```
 wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent
 ```
 
 ### Implementation Approaches
 
+While the Live API communicates over WebSockets, the recommended best practice is to use the official Google GenAI SDKs for your language (e.g., `@google/genai` for Node.js, `google-generativeai` for Python). The SDKs handle the complexities of connection management, authentication, and message formatting, providing a much more stable and developer-friendly experience.
+
 #### Server-to-Server
-- Backend connects to Live API using WebSockets
-- Client sends data to your server, which forwards to Live API
-- More secure but higher latency
+- Your backend connects to the Live API using a Google GenAI SDK.
+- The client (e.g., a web or mobile app) sends user data to your server, which then securely interacts with the Gemini API.
+- **Recommended for most production applications** as it keeps API keys secure.
 
 #### Client-to-Server
-- Frontend connects directly to Live API using WebSockets
-- Lower latency, easier setup
-- Use ephemeral tokens for production security
+- The frontend connects directly to the Live API using a Google GenAI SDK and an ephemeral, single-use token.
+- **Lower latency and simpler setup**, but requires a secure mechanism on your backend to mint and provide ephemeral tokens to the client.
+- Use ephemeral tokens to mitigate the risk of exposing long-lived credentials.
 
 ## Session Configuration
 

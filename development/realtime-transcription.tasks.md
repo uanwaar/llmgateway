@@ -18,7 +18,7 @@ Quick links
 
 ---
 
-## Phase 1 — Foundations
+## Phase 1 — Foundations (completed under old plan)
 
 ### T01 — Read and align with design docs
 - Status: Done | Effort: S
@@ -77,7 +77,7 @@ Quick links
 
 Notes (Phase 1 completed):
 - Implemented config block and surfaced via `src/config/index.js`.
-- Added `ws` dependency and wired HTTP upgrade handler in `src/server.js` to route `/v1/realtime/transcribe` to the controller.
+- Added `ws` dependency and wired HTTP upgrade handler in `src/server.js` to route `/v1/realtime/transcribe` to the controller. This path must be migrated to `/v1/realtime/transcription` in Phase 2 (see T05).
 - Created `src/controllers/realtime.controller.js` (WebSocketServer noServer) with a basic auth gate and session creation.
 - Created `src/services/realtime.service.js` with in-memory session registry, idle-timeout cleanup, and simple `session.update` → `session.updated` flow.
 - Added example `examples/javascript/realtime-smoke.js` which connects to the gateway, verifies `session.created` and `session.updated`, and exits with code 0 on success.
@@ -85,52 +85,67 @@ Notes (Phase 1 completed):
 
 ---
 
-## Phase 2 — Provider Adapters
+## Phase 2 — Align to new plan and provider adapters
 
-### T05 — OpenAI Realtime adapter (WebSocket)
+### T05 — Migrate gateway WS path to `/v1/realtime/transcription`
+- Status: Todo | Effort: S
+- Description: Rename the WS endpoint from `/v1/realtime/transcribe` to `/v1/realtime/transcription`. Keep an optional temporary alias for backward compatibility in development only.
+- Files:
+  - Modify: `src/server.js` (upgrade path match)
+  - Modify: `src/controllers/realtime.controller.js` (if path-coupled logging/messages)
+  - Modify: `examples/javascript/realtime-smoke.js` (client path)
+  - Modify: docs and status files referencing the old path
+- References:
+  - `docs/realtimeapi-enhancement.md` (API Surface)
+- Acceptance:
+  - Connecting to `/v1/realtime/transcription` returns `session.created`.
+  - Old path returns 410 Gone or a structured error in development only (optional), then removed.
+
+### T06 — OpenAI transcription adapter (WebSocket, intent=transcription)
 - Status: Todo | Effort: M
-- Description: Upstream WS client to OpenAI. Map gateway events to OpenAI events and back.
+- Description: Implement upstream WS client to OpenAI with `intent=transcription`. Send `transcription_session.update` for session configuration. Map gateway events to OpenAI events and normalize responses.
 - Files:
   - Create: `src/providers/openai/realtime.adapter.js`
-  - Add dependency: `ws` (npm) for client WS
+  - Ensure dependency: `ws`
 - References:
-  - `docs/openai-realtime-api.md` (Connection Methods → WebSocket; Client/Server Events)
-  - Config: realtime models in YAML
-- Context: After T04. Requires `X-Provider-Token` pass-through and/or gateway API key.
+  - `docs/openai-realtime-api.md` (transcription flow and events)
+  - Config: transcription models in YAML (`gpt-4o-transcribe`, `gpt-4o-mini-transcribe`, `whisper-1`)
 - Methods/Endpoints:
-  - `wss://api.openai.com/v1/realtime?model=<model>` headers `Authorization: Bearer <token>`, `OpenAI-Beta: realtime=v1`
-  - Map: `input_audio.append→input_audio_buffer.append`, `commit`, `clear`, `response.create`
+  - `wss://api.openai.com/v1/realtime?intent=transcription` with headers `Authorization: Bearer <API_KEY>`, `OpenAI-Beta: realtime=v1`
+  - Map: `session.update` → `transcription_session.update`; `input_audio.append` → `input_audio_buffer.append`; `commit` → `input_audio_buffer.commit`; `clear` → `input_audio_buffer.clear`
 - Acceptance:
-  - Happy path: send append/commit/create; receive `response.audio_transcript.delta|done` normalized to `transcript.*`.
-  - Proper error mapping to gateway `error` envelope.
+  - Happy path: append/commit triggers `conversation.item.input_audio_transcription.delta|completed` normalized to `transcript.delta|done`.
+  - Proper error mapping to gateway `error` envelope; speech_started/stopped and rate_limits forwarded.
 
-### T06 — Gemini Live adapter (WebSocket)
+### T07 — Gemini Live adapter (SDK-backed)
 - Status: Todo | Effort: M
-- Description: Upstream WS client to Gemini Live. Implement `setup`, `realtimeInput`, manual/automatic VAD.
+- Description: Use the official Google GenAI SDK (`@google/genai`) to connect to Gemini Live for transcription. Avoid raw WebSocket usage. Implement setup with `{ responseModalities: ["TEXT"], inputAudioTranscription: {} }`.
 - Files:
   - Create: `src/providers/gemini/realtime.adapter.js`
+  - Add dependency: `@google/genai`
 - References:
-  - `docs/gemini-realtime-api.md` (WebSocket Endpoint, Session Config, Realtime Input)
-- Context: After T04.
+  - `docs/gemini-realtime-api.md` (SDK usage and transcription example)
+  - `tests/realtimeapi/gemini-transcription.mjs` (reference implementation)
 - Methods/Endpoints:
-  - `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent`
-  - `setup` with `generationConfig.responseModalities=["TEXT"]`
-  - `realtimeInput.audio` with `mimeType: audio/pcm;rate=16000`
+  - SDK `ai.live.connect({ model, config, callbacks })`
+  - Input: `session.sendRealtimeInput({ audio: { data: <base64>, mimeType: "audio/pcm;rate=16000" } })`
+  - Output: map `serverContent.inputTranscription` to `transcript.delta|done`; use `turnComplete` as delimiter
 - Acceptance:
-  - Happy path: append audio, either manual turn or AAD config; receive transcription mapped to `transcript.delta|done`.
+  - Happy path: append/commit produces streaming transcripts normalized to `transcript.*`.
+  - Proper error mapping and handling of `interrupted` and `usageMetadata`.
 
-### T07 — Event normalization layer
+### T08 — Event normalization layer (updated mappings)
 - Status: Todo | Effort: S
 - Description: Normalize provider events to the gateway schema.
 - Files:
   - Create: `src/utils/realtime-normalizer.js`
 - References:
-  - `docs/realtimeapi-enhancement.md` (Unified Event Model, Provider Mapping)
+  - `docs/realtimeapi-enhancement.md` (Unified Event Model, Provider Mapping updates)
 - Context: After T05, T06 stubs exist.
 - Acceptance:
-  - Unit tests cover mapping for OpenAI `response.*` and Gemini `serverContent` → `transcript.*`, `rate_limits.updated`, `error`.
+  - Unit tests cover mapping for OpenAI `conversation.item.input_audio_transcription.delta|completed` and Gemini `serverContent.inputTranscription` → `transcript.*`, plus `rate_limits.updated`, `error`.
 
-### T08 — Audio utils (PCM16 framing and validation)
+### T09 — Audio utils (PCM16 framing and validation)
 - Status: Todo | Effort: S
 - Description: Validate PCM16 mono chunks, base64 decode/encode, chunk sizing, and optional resampling stub.
 - Files:
@@ -145,20 +160,19 @@ Notes (Phase 1 completed):
 
 ## Phase 3 — Security, Limits, Observability
 
-### T09 — Gateway auth + provider ephemeral tokens
+### T10 — Security: standard provider API keys only (remove ephemeral token paths)
 - Status: Todo | Effort: S
-- Description: Require gateway auth; accept `X-Provider-Token` for OpenAI/Gemini ephemeral session tokens.
+- Description: Enforce gateway auth and use only gateway-managed provider API keys. Remove any `X-Provider-Token` handling and related code paths.
 - Files:
-  - Modify: `src/controllers/realtime.controller.js` (auth check)
-  - Modify: `src/services/realtime.service.js` (store provider token per session)
+  - Modify: `src/controllers/realtime.controller.js` (auth check, remove token passthrough)
+  - Modify: `src/services/realtime.service.js` (remove provider token storage)
 - References:
   - `docs/realtimeapi-enhancement.md` (Security)
   - `src/middleware/auth.middleware.js`
-- Context: After T03.
 - Acceptance:
-  - Unauthorized WS gets `error` and close; authorized with optional provider token reaches upstream.
+  - Unauthorized WS gets `error` and close; no code paths accept or rely on client-supplied provider tokens.
 
-### T10 — Rate limits and backpressure
+### T11 — Rate limits and backpressure
 - Status: Todo | Effort: M
 - Description: Enforce RPM/APM limits and pause/resume reads on pressure. Cap buffer length and chunk rate.
 - Files:
@@ -170,7 +184,7 @@ Notes (Phase 1 completed):
 - Acceptance:
   - When limits exceeded, emit `error` and/or throttle without crashing; log metrics.
 
-### T11 — Metrics, logging, tracing
+### T12 — Metrics, logging, tracing
 - Status: Todo | Effort: S
 - Description: Add Prometheus counters/gauges, structured logs, and tracing spans.
 - Files:
@@ -187,7 +201,7 @@ Notes (Phase 1 completed):
 
 ## Phase 4 — Tests, Examples, and Ops
 
-### T12 — Integration tests with mock providers
+### T13 — Integration tests with mock providers (updated mappings)
 - Status: Todo | Effort: M
 - Description: Mock WS servers that emit representative OpenAI and Gemini events. Test normalization and flows.
 - Files:
@@ -198,9 +212,9 @@ Notes (Phase 1 completed):
   - `docs/openai-realtime-api.md`, `docs/gemini-realtime-api.md`
 - Context: After adapters (T05, T06) exist.
 - Acceptance:
-  - Jest passes in CI for happy path and key error paths.
+  - Jest passes in CI for happy path and key error paths with transcription-specific events.
 
-### T13 — E2E smoke test and example client
+### T14 — E2E smoke test and example client
 - Status: Todo | Effort: S
 - Description: Minimal WS client sending PCM16 chunks and asserting transcript stream.
 - Files:
@@ -210,9 +224,9 @@ Notes (Phase 1 completed):
   - `docs/realtimeapi-enhancement.md` (Unified events)
 - Context: After T03–T08.
 - Acceptance:
-  - Local run produces expected `transcript.delta|done`.
+  - Local run produces expected `transcript.delta|done` against `/v1/realtime/transcription`.
 
-### T14 — Docker/nginx and K8s WS tweaks
+### T15 — Docker/nginx and K8s WS tweaks
 - Status: Todo | Effort: S
 - Description: Ensure WS proxying and timeouts.
 - Files:
@@ -224,7 +238,7 @@ Notes (Phase 1 completed):
 - Acceptance:
   - WS works through Docker and Ingress; tested via example client.
 
-### T15 — Documentation updates
+### T16 — Documentation updates
 - Status: Todo | Effort: S
 - Description: Add API reference for unified WS events and quickstart.
 - Files:
@@ -236,7 +250,7 @@ Notes (Phase 1 completed):
 - Acceptance:
   - Docs provide copy-paste example for connecting and streaming audio.
 
-### T16 — Performance & benchmarks
+### T17 — Performance & benchmarks
 - Status: Todo | Effort: S
 - Description: Measure E2E latency from commit→first transcript delta; add to `benchmark-results/`.
 - Files:
@@ -248,7 +262,7 @@ Notes (Phase 1 completed):
 - Acceptance:
   - Reported median latency <300ms (LAN) or baseline documented if higher.
 
-### T17 — Feature flag and rollout
+### T18 — Feature flag and rollout
 - Status: Todo | Effort: S
 - Description: Gate endpoint behind `realtime.enabled`. Disable cleanly when false.
 - Files:
@@ -258,9 +272,9 @@ Notes (Phase 1 completed):
   - `docs/realtimeapi-enhancement.md` (Configuration Changes)
 - Context: Final hardening.
 - Acceptance:
-  - When disabled, WS path returns structured error and closes.
+  - When disabled, WS path `/v1/realtime/transcription` returns structured error and closes.
 
-### T18 — Release notes and changelog
+### T19 — Release notes and changelog
 - Status: Todo | Effort: S
 - Description: Summarize feature and migration notes.
 - Files:

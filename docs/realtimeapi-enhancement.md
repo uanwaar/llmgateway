@@ -8,7 +8,7 @@ This plan describes how to add low-latency, realtime transcription to LLM Gatewa
   - Realtime transcription over WebSockets with low latency (<300ms target E2E on LAN) and robust turn detection.
   - Unified gateway interface that normalizes events across OpenAI Realtime and Gemini Live.
   - Support push-to-talk (manual VAD) and automatic VAD modes.
-  - Ephemeral client tokens for client-to-provider connections (security), plus server-to-provider S2S mode.
+  - Use standard provider API keys managed by the gateway (no ephemeral tokens); support server-to-provider S2S mode.
   - Backpressure-safe audio pipelines and graceful interruption.
   - Production-grade metrics, logging, and rate-limiting.
 - Non-Goals
@@ -17,14 +17,14 @@ This plan describes how to add low-latency, realtime transcription to LLM Gatewa
 
 ## High-Level Design
 
-- New WebSocket entrypoint at the gateway: `ws://<gateway>/v1/realtime/transcribe` (provider-agnostic).
+- New WebSocket entrypoint at the gateway: `ws://<gateway>/v1/realtime/transcription` (provider-agnostic).
 - The gateway maintains a per-connection RealtimeSession with:
   - Provider binding (OpenAI or Gemini) based on requested model.
   - VAD configuration (server/semantic/manual), audio buffer, and item state machine.
   - Provider session lifecycle and resumption (when available).
 - Event Normalization Layer converts provider-specific events into a unified schema.
 - Audio I/O Pipeline ensures PCM16 mono handling, base64 framing, backpressure, and chunk sizing.
-- Security uses gateway auth + optional ephemeral provider tokens.
+- Security uses gateway auth (standard API key) and gateway-managed provider credentials (no ephemeral provider tokens).
 
 ## Unified Event Model (Gateway-facing)
 
@@ -33,7 +33,7 @@ All WS messages are JSON. Client→Gateway events:
 - `input_audio.append`: Append base64 PCM16 audio chunk (16kHz mono for Gemini; 24kHz mono default for OpenAI; see normalization below).
 - `input_audio.commit`: Commit the current audio buffer into a user turn.
 - `input_audio.clear`: Clear buffer.
-- `response.create`: Request model processing now (manual VAD mode) or interrupt current output.
+  - In transcription mode, commit marks end-of-input and triggers transcription; no separate `response.create` is required.
 
 Gateway→Client events:
 - `session.created|updated`
@@ -43,29 +43,30 @@ Gateway→Client events:
 - `error` (unified error envelope)
 
 Notes
-- For OpenAI mapping, `input_audio.append` → `input_audio_buffer.append`, etc.
-- For Gemini mapping, `input_audio.append` → `realtimeInput.audio` frames; server responses mapped from `serverContent` and transcription outputs.
+- For OpenAI mapping, `session.update` → `transcription_session.update`; `input_audio.append` → `input_audio_buffer.append`, `input_audio.commit` → `input_audio_buffer.commit`, `input_audio.clear` → `input_audio_buffer.clear`.
+- For Gemini mapping, use the official SDK; `input_audio.append` → `session.sendRealtimeInput({ audio })`; server responses mapped from `serverContent.inputTranscription` outputs.
 
 ## Provider Mapping Summary
 
-- OpenAI Realtime (WebSocket)
-  - Endpoint: `wss://api.openai.com/v1/realtime?model=<realtime_model>`
-  - Required headers: `Authorization: Bearer <API_KEY or EPHEMERAL_KEY>`, `OpenAI-Beta: realtime=v1`
-  - Input events: `input_audio_buffer.append|commit|clear`, `response.create`
-  - Output events: `response.text.delta|done`, `input_audio_buffer.speech_started|stopped|committed`, `response.audio_transcript.delta|done`, `rate_limits.updated`, `error`
-  - Audio: PCM16, 24kHz mono (default).
+OpenAI Realtime (WebSocket, transcription intent)
+  - Endpoint: `wss://api.openai.com/v1/realtime?intent=transcription`
+  - Required headers: `Authorization: Bearer <API_KEY>`, `OpenAI-Beta: realtime=v1`
+  - Session config: send `transcription_session.update` to set `input_audio_format`, `input_audio_transcription.model` (e.g., `gpt-4o-transcribe`, `gpt-4o-mini-transcribe`, or `whisper-1`), `language`, `turn_detection`, etc.
+  - Input events: `input_audio_buffer.append | commit | clear` (no `response.create` in transcription mode)
+  - Output events: `input_audio_buffer.speech_started | speech_stopped | committed`, `conversation.item.input_audio_transcription.delta | completed`, `rate_limits.updated`, `error`
+  - Audio: PCM16, 24kHz mono (recommended).
 
-- Gemini Live (WebSocket)
-  - Endpoint: `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent`
-  - Use `setup` then `realtimeInput` messages. VAD via `automaticActivityDetection` or manual markers.
-  - Input: `clientContent`, `realtimeInput.audio` (mime `audio/pcm;rate=16000`), `realtimeInput.activityStart` for manual VAD.
-  - Output: `serverContent` with `turnComplete`, `interrupted`, `usageMetadata`; transcription via `inputAudioTranscription` outputs.
+Gemini Live (SDK-backed)
+  - Connection: Use the official Google GenAI SDK (e.g., `@google/genai` for Node.js) instead of raw WebSocket for stability and correctness.
+  - Session config: `{ responseModalities: ["TEXT"], systemInstruction, inputAudioTranscription: {} }`.
+  - Input: `session.sendRealtimeInput({ audio: { data: <base64>, mimeType: "audio/pcm;rate=16000" } })`; for manual VAD, the adapter may emit an activity start equivalent when needed.
+  - Output: SDK messages with `serverContent.inputTranscription` mapped to `transcript.delta|done`; use `serverContent.turnComplete` to delimit turns; also map `usageMetadata` and `interrupted`.
   - Audio: PCM16, 16kHz mono input; output 24kHz mono.
 
 ## API Surface (Gateway)
 
-- URL: `ws(s)://<gateway-host>/v1/realtime/transcribe`
-- Auth: Same gateway auth as existing HTTP APIs via header `Authorization: Bearer <client_key>` or session cookie. Optional `X-Provider-Token` for client-supplied ephemeral tokens.
+- URL: `ws(s)://<gateway-host>/v1/realtime/transcription`
+- Auth: Same gateway auth as existing HTTP APIs via header `Authorization: Bearer <client_key>` or session cookie. Ephemeral provider tokens are not supported.
 - Query params:
   - `model`: required (e.g., `gpt-4o-realtime-preview-2025-06-03`, `gemini-live-2.5-flash-preview`)
   - `provider`: optional (`openai|gemini`). If omitted, resolved by model map.
@@ -74,7 +75,7 @@ Notes
 
 - Example client session bootstrap
   - Send `session.update` with model, modalities=["text"], vad config.
-  - For manual: sequence `input_audio.append*` → `input_audio.commit` → `response.create`.
+  - For manual: sequence `input_audio.append*` → `input_audio.commit` (commit triggers transcription in both providers via adapters; no `response.create`).
 
 ## Configuration Changes
 
@@ -83,13 +84,31 @@ Add to YAML configs under `config/*.yaml`:
 ```yaml
 realtime:
   enabled: true
-  # Allowed realtime models and default provider routing
+  # Allowed realtime transcription models and default provider routing
   models:
-    - id: gpt-4o-realtime-preview-2025-06-03
+    - id: gpt-4o-transcribe
       provider: openai
       input:
         sample_rate_hz: 24000
         mime_type: audio/pcm;rate=24000
+      vad_default: server_vad
+    - id: gpt-4o-mini-transcribe
+      provider: openai
+      input:
+        sample_rate_hz: 24000
+        mime_type: audio/pcm;rate=24000
+      vad_default: server_vad
+    - id: whisper-1
+      provider: openai
+      input:
+        sample_rate_hz: 16000
+        mime_type: audio/pcm;rate=16000
+      vad_default: server_vad
+    - id: gemini-2.0-flash-live-001
+      provider: gemini
+      input:
+        sample_rate_hz: 16000
+        mime_type: audio/pcm;rate=16000
       vad_default: server_vad
     - id: gemini-live-2.5-flash-preview
       provider: gemini
@@ -113,7 +132,7 @@ realtime:
       eagerness: auto
   # Security
   security:
-    allow_client_ephemeral_tokens: true
+    allow_client_ephemeral_tokens: false
     max_session_minutes: 15
     max_idle_seconds: 60
   # Limits
@@ -131,8 +150,8 @@ realtime:
 - Service: `src/services/realtime.service.js`
   - Session registry (in-memory; optional Redis later), VAD orchestration, backpressure, interruption, idle timeouts.
 - Adapters:
-  - `src/providers/openai/realtime.adapter.js` (wraps OpenAI WS, maps events)
-  - `src/providers/gemini/realtime.adapter.js` (wraps Gemini WS, maps messages)
+  - `src/providers/openai/realtime.adapter.js` (wraps OpenAI Realtime WS with transcription intent, maps events)
+  - `src/providers/gemini/realtime.adapter.js` (uses Google GenAI SDK Live API, maps messages)
 - Utils:
   - `src/utils/audio.js` (PCM16 conversion, resampling if needed, base64 framing, chunk sizing)
   - `src/utils/realtime-normalizer.js` (event normalization)
@@ -147,15 +166,15 @@ Note: Keep changes additive; existing HTTP APIs remain untouched.
 
 1. WS connect → authenticate → `session.created`.
 2. `session.update` → provider session initialization:
-   - OpenAI: send `session.update` with desired `modalities=["text"]`, `turn_detection` settings.
-   - Gemini: send `setup` with `generationConfig.responseModalities=["TEXT"]`, and `realtimeInputConfig.automaticActivityDetection` or manual disabled.
+  - OpenAI: send `transcription_session.update` with `input_audio_format`, `input_audio_transcription.model`, `language`, and `turn_detection` settings.
+  - Gemini: initialize SDK Live session with `{ responseModalities: ["TEXT"], inputAudioTranscription: {} }` and configure VAD (`automaticActivityDetection` or manual).
 3. Audio append/commit flow:
    - Buffer and enforce `max_buffer_ms`. When `input_audio.commit`, forward provider-specific commit event.
 4. Response creation:
-   - Manual VAD: forward `response.create` (OpenAI) or `clientContent.turnComplete=true` (Gemini) to trigger processing.
+  - Manual VAD: commit marks end-of-input; provider starts transcription automatically. For Gemini, the adapter may also signal turn completion as needed.
 5. Stream transcripts:
-   - OpenAI: map `response.audio_transcript.delta|done`.
-   - Gemini: map `inputAudioTranscription` outputs to `transcript.delta|done`.
+  - OpenAI: map `conversation.item.input_audio_transcription.delta|completed` to `transcript.delta|done`.
+  - Gemini: map `serverContent.inputTranscription` outputs to `transcript.delta|done`.
 6. Idle timeout and max session enforcement.
 7. Graceful close on `error` or `goAway` or gateway shutdown.
 
@@ -175,8 +194,7 @@ Note: Keep changes additive; existing HTTP APIs remain untouched.
 
 - Gateway Auth: must pass existing auth middleware (API key or JWT).
 - Provider Credentials:
-  - Default to gateway-managed provider keys.
-  - Allow client ephemeral tokens (OpenAI Sessions, Gemini v1alpha Live token) via `X-Provider-Token` header or query; validate format and scope.
+  - Use only gateway-managed provider API keys. Client-supplied ephemeral provider tokens are not supported in this enhancement.
 - Quotas and Abuse Controls:
   - Per-API key session caps and RPM/APM (audio-seconds per minute) limits.
   - Max input chunk size, max buffer length, and model allowlist.
