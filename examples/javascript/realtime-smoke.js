@@ -1,4 +1,4 @@
-// Minimal WS smoke test against /v1/realtime/transcribe
+// Minimal WS smoke test against /v1/realtime/transcription
 // Usage: node examples/javascript/realtime-smoke.js
 
 const WebSocket = require('ws');
@@ -7,7 +7,7 @@ const HOST = process.env.GATEWAY_HOST || 'localhost';
 const PORT = process.env.GATEWAY_PORT || 8080;
 const MODEL = process.env.REALTIME_MODEL || 'gpt-4o-realtime-preview-2025-06-03';
 
-const url = `ws://${HOST}:${PORT}/v1/realtime/transcribe?model=${encodeURIComponent(MODEL)}`;
+const url = `ws://${HOST}:${PORT}/v1/realtime/transcription?model=${encodeURIComponent(MODEL)}`;
 
 /* eslint-disable no-console */
 const ws = new WebSocket(url);

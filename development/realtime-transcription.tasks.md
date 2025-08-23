@@ -88,7 +88,7 @@ Notes (Phase 1 completed):
 ## Phase 2 — Align to new plan and provider adapters
 
 ### T05 — Migrate gateway WS path to `/v1/realtime/transcription`
-- Status: Todo | Effort: S
+- Status: Done | Effort: S
 - Description: Rename the WS endpoint from `/v1/realtime/transcribe` to `/v1/realtime/transcription`. Keep an optional temporary alias for backward compatibility in development only.
 - Files:
   - Modify: `src/server.js` (upgrade path match)
@@ -102,7 +102,7 @@ Notes (Phase 1 completed):
   - Old path returns 410 Gone or a structured error in development only (optional), then removed.
 
 ### T06 — OpenAI transcription adapter (WebSocket, intent=transcription)
-- Status: Todo | Effort: M
+- Status: Done | Effort: M
 - Description: Implement upstream WS client to OpenAI with `intent=transcription`. Send `transcription_session.update` for session configuration. Map gateway events to OpenAI events and normalize responses.
 - Files:
   - Create: `src/providers/openai/realtime.adapter.js`
@@ -118,7 +118,7 @@ Notes (Phase 1 completed):
   - Proper error mapping to gateway `error` envelope; speech_started/stopped and rate_limits forwarded.
 
 ### T07 — Gemini Live adapter (SDK-backed)
-- Status: Todo | Effort: M
+- Status: Done | Effort: M
 - Description: Use the official Google GenAI SDK (`@google/genai`) to connect to Gemini Live for transcription. Avoid raw WebSocket usage. Implement setup with `{ responseModalities: ["TEXT"], inputAudioTranscription: {} }`.
 - Files:
   - Create: `src/providers/gemini/realtime.adapter.js`
@@ -135,10 +135,12 @@ Notes (Phase 1 completed):
   - Proper error mapping and handling of `interrupted` and `usageMetadata`.
 
 ### T08 — Event normalization layer (updated mappings)
-- Status: Todo | Effort: S
+- Status: Done | Effort: S
 - Description: Normalize provider events to the gateway schema.
 - Files:
   - Create: `src/utils/realtime-normalizer.js`
+  - Modify: `src/services/realtime.service.js` (use normalizer)
+  - Create: `tests/unit/gemini-normalization.test.js`, update `tests/unit/openai-normalization.test.js`
 - References:
   - `docs/realtimeapi-enhancement.md` (Unified Event Model, Provider Mapping updates)
 - Context: After T05, T06 stubs exist.
@@ -146,10 +148,11 @@ Notes (Phase 1 completed):
   - Unit tests cover mapping for OpenAI `conversation.item.input_audio_transcription.delta|completed` and Gemini `serverContent.inputTranscription` → `transcript.*`, plus `rate_limits.updated`, `error`.
 
 ### T09 — Audio utils (PCM16 framing and validation)
-- Status: Todo | Effort: S
+- Status: Done | Effort: S
 - Description: Validate PCM16 mono chunks, base64 decode/encode, chunk sizing, and optional resampling stub.
 - Files:
   - Create: `src/utils/audio.js`
+  - Create: `tests/unit/audio-utils.test.js`
 - References:
   - `docs/openai-realtime-api.md` and `docs/gemini-realtime-api.md` (Audio formats)
 - Context: After T04.

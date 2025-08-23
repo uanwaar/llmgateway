@@ -74,7 +74,8 @@ async function start(app) {
         if (logger && typeof logger.debug === 'function') {
           logger.debug('WS upgrade request', { pathname });
         }
-        if (pathname === '/v1/realtime/transcribe') {
+        // New path (preferred)
+        if (pathname === '/v1/realtime/transcription') {
           if (!config.realtime?.enabled) {
             socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
             return socket.destroy();
@@ -83,6 +84,19 @@ async function start(app) {
             realtimeController = require('./controllers/realtime.controller');
           }
           return realtimeController.handleUpgrade(req, socket, head);
+        }
+        // Deprecated old path: respond 410 Gone
+        if (pathname === '/v1/realtime/transcribe') {
+          const body = 'Deprecated endpoint. Use /v1/realtime/transcription';
+          socket.write(
+            'HTTP/1.1 410 Gone\r\n' +
+            'Content-Type: text/plain; charset=utf-8\r\n' +
+            `Content-Length: ${Buffer.byteLength(body)}\r\n` +
+            'Connection: close\r\n' +
+            '\r\n' +
+            body
+          );
+          return socket.destroy();
         }
       } catch (err) {
         logger.error('WS upgrade error', { error: err.message });
