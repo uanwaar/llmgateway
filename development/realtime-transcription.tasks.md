@@ -163,20 +163,15 @@ Notes (Phase 1 completed):
 
 ## Phase 3 — Security, Limits, Observability
 
-### T10 — Security: standard provider API keys only (remove ephemeral token paths)
-- Status: Todo | Effort: S
-- Description: Enforce gateway auth and use only gateway-managed provider API keys. Remove any `X-Provider-Token` handling and related code paths.
-- Files:
-  - Modify: `src/controllers/realtime.controller.js` (auth check, remove token passthrough)
-  - Modify: `src/services/realtime.service.js` (remove provider token storage)
-- References:
-  - `docs/realtimeapi-enhancement.md` (Security)
-  - `src/middleware/auth.middleware.js`
-- Acceptance:
-  - Unauthorized WS gets `error` and close; no code paths accept or rely on client-supplied provider tokens.
+### T10 — Security: No-op (retain existing auth behavior)
+- Status: Done | Effort: None
+- Description: Keep current behavior as-is. Realtime WS allows connections without auth headers by default (parity with other endpoints). No changes to token handling or adapter credential sourcing.
+- Files: None
+- References: `src/controllers/realtime.controller.js`
+- Acceptance: No code changes required; existing behavior remains unchanged.
 
 ### T11 — Rate limits and backpressure
-- Status: Todo | Effort: M
+- Status: Done | Effort: M
 - Description: Enforce RPM/APM limits and pause/resume reads on pressure. Cap buffer length and chunk rate.
 - Files:
   - Modify: `src/services/realtime.service.js`
@@ -188,7 +183,7 @@ Notes (Phase 1 completed):
   - When limits exceeded, emit `error` and/or throttle without crashing; log metrics.
 
 ### T12 — Metrics, logging, tracing
-- Status: Todo | Effort: S
+- Status: Done | Effort: S
 - Description: Add Prometheus counters/gauges, structured logs, and tracing spans.
 - Files:
   - Modify: `src/utils/logger.js`

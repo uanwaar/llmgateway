@@ -11,11 +11,16 @@ How to use
 - Auth: gateway-managed provider API keys in use; client-supplied provider tokens are not accepted.
 - Providers: OpenAI Realtime (intent=transcription) integrated; Gemini Live integrated via @google/genai SDK.
 - Event normalization: centralized in `src/utils/realtime-normalizer.js`; service imports and uses it.
-- Audio I/O: `src/utils/audio.js` added for PCM16 validation and chunking.
+- Audio I/O: `src/utils/audio.js` added for PCM16 validation and chunking, plus rate helpers (`estimateBase64DecodedBytes`, duration/bytes per second).
 - VAD modes: server_vad is configurable and forwarded to providers; manual VAD is fully supported.
 	- Exposed to clients via `session.update.vad` with fields: `type` ('server_vad' | 'manual'), `silence_duration_ms`, `prefix_padding_ms`, `start_sensitivity`, `end_sensitivity`.
 	- OpenAI: mapped to `turn_detection` (server_vad params) or disabled (`type: 'none'`) for manual.
 	- Gemini: mapped to `realtimeInputConfig.automaticActivityDetection` (sensitivities/prefix/silence) or disabled for manual; commits delimit turns.
+ - Metrics & logging: T12 completed — lightweight `metrics.service.js` added and wired into the realtime service; see Recent Updates.
+- Rate limits & backpressure (T11):
+	- Enforces APM (audio seconds per minute) and per-second throughput (based on model sample rate).
+	- Bounded queue by `realtime.audio.max_buffer_ms`; emits `rate_limits.updated`.
+	- Pauses client reads (`ws._socket.pause()`) on backlog or upstream backpressure; resumes when drained; emits `warning` events `backpressure_paused`/`backpressure_resumed`.
 
 ## Milestones
 - [x] M1: WS endpoint returns session.created (T03) — Phase 1 complete
@@ -23,7 +28,7 @@ How to use
 - [x] M3: OpenAI path end-to-end transcript (T06) — adapter implemented, upstream session.update sent, normalization/tests in place
 - [x] M4: Gemini path end-to-end transcript via SDK (T07) — adapter scaffolded with SDK, wiring in service, normalization/tests in place
 	— VAD mapping implemented (automaticActivityDetection/disabled) and manual VAD flow via commit.
-- [ ] M5: Limits/metrics/logging in place (T11–T12)
+- [x] M5: Limits/metrics/logging in place (T11–T12)
 - [ ] M6: Docs, example, and smoke tests (T14–T16)
 
 ## Recent Updates
@@ -51,6 +56,28 @@ Details:
 - `src/utils/realtime-normalizer.js`: provider→unified event mapping.
 - `src/utils/audio.js`: PCM16 helpers.
 - Tests: `tests/unit/openai-normalization.test.js`, `tests/unit/gemini-normalization.test.js`, `tests/unit/audio-utils.test.js` passing.
+
+- 2025-08-23: Observability (T12) completed.
+	- Created `src/services/metrics.service.js` which exposes Prometheus-compatible metrics when `prom-client` is available and a safe in-memory fallback otherwise.
+	- Metrics added:
+		- `realtime_sessions_active` (gauge)
+		- `realtime_audio_seconds_total` (counter)
+		- `realtime_transcript_tokens_total` (counter)
+		- `realtime_response_latency_ms` (histogram)
+		- `realtime_errors_total` (counter)
+	- Wired into `src/services/realtime.service.js`:
+		- sessions_active increment/decrement on create/close
+		- audio seconds counted on successful sends/drain
+		- transcript tokens approximated on `transcript.done`
+		- response latency measured from `input_audio.commit` → first `transcript.delta`
+		- errors incremented on error send paths
+	- Tests: unit suites remain green after the changes.
+
+- 2025-08-23: T11 — Rate limits and backpressure implemented.
+	- Service: per-session windows for per-second throughput and per-minute APM; queue with max_buffer cap; drain loop; timer cleanup on close.
+	- Pause/Resume: pause client reads on backlog or upstream adapter backpressure; resume when queue drains; emit `rate_limits.updated` and `warning` events.
+	- Utils: added `estimateBase64DecodedBytes` and related helpers in `src/utils/audio.js`.
+	- Tests: `tests/unit/realtime-throttle.test.js` (APM error + rate updates), `tests/unit/realtime-pause.test.js` (pause/resume flow) — passing.
 
 Smoke test:
 - Ran example `examples/javascript/realtime-smoke.js` against local server on port 8081; observed `session.created` and `session.updated` events.

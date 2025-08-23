@@ -65,9 +65,16 @@ async function shutdown(signal) {
     await server.stop();
     
     logger.info('Graceful shutdown completed');
+    // Avoid exiting the process during tests to keep Jest workers alive
+    if (process.env.JEST_WORKER_ID || process.env.NODE_ENV === 'test') {
+      return;
+    }
     process.exit(0);
   } catch (error) {
     logger.error('Error during shutdown', { error: error.message });
+    if (process.env.JEST_WORKER_ID || process.env.NODE_ENV === 'test') {
+      return;
+    }
     process.exit(1);
   }
 }
@@ -80,12 +87,16 @@ process.on('SIGHUP', () => shutdown('SIGHUP'));
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
   logger.error('Uncaught exception', { error: error.message, stack: error.stack });
-  process.exit(1);
+  if (!(process.env.JEST_WORKER_ID || process.env.NODE_ENV === 'test')) {
+    process.exit(1);
+  }
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled rejection', { reason, promise });
-  process.exit(1);
+  if (!(process.env.JEST_WORKER_ID || process.env.NODE_ENV === 'test')) {
+    process.exit(1);
+  }
 });
 
 // Start the application

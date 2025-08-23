@@ -136,7 +136,16 @@ async function stop() {
     // Force close after timeout
     setTimeout(() => {
       logger.warn('Force closing server after timeout');
-      server.destroy();
+      try {
+        if (typeof server.closeAllConnections === 'function') {
+          server.closeAllConnections();
+        }
+        if (typeof server.closeIdleConnections === 'function') {
+          server.closeIdleConnections();
+        }
+      } catch (e) {
+        logger.warn('Error while force closing connections', { error: e.message });
+      }
       server = null;
       resolve();
     }, 10000);

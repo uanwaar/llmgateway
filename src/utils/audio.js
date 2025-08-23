@@ -48,6 +48,21 @@ function bufferToBase64(buf) {
   return Buffer.from(buf).toString('base64');
 }
 
+function estimateBase64DecodedBytes(b64) {
+  if (!b64 || typeof b64 !== 'string') return 0;
+  // Base64 decoding size approximation: floor(len * 3/4) minus padding
+  const len = b64.length;
+  const padding = (b64.endsWith('==') ? 2 : (b64.endsWith('=') ? 1 : 0));
+  return Math.floor((len * 3) / 4) - padding;
+}
+
+function maxChunkBytesForMs(sampleRate = 16000, channels = 1, maxChunkMs = 100) {
+  const bps = bytesPerSecond(sampleRate, channels);
+  let bytes = Math.floor((bps * maxChunkMs) / 1000);
+  if (bytes % BYTES_PER_SAMPLE !== 0) bytes -= (bytes % BYTES_PER_SAMPLE);
+  return Math.max(bytes, BYTES_PER_SAMPLE);
+}
+
 function splitPcm16IntoChunks(buffer, sampleRate = 16000, maxChunkMs = 100, channels = 1) {
   if (!Buffer.isBuffer(buffer)) throw new Error('buffer must be a Buffer');
   const bps = bytesPerSecond(sampleRate, channels);
@@ -89,4 +104,6 @@ module.exports = {
   bufferToBase64,
   splitPcm16IntoChunks,
   resamplePcm16LinearStub,
+  estimateBase64DecodedBytes,
+  maxChunkBytesForMs,
 };

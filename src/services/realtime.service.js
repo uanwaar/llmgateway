@@ -11,6 +11,12 @@ const config = require('../config');
 const OpenAIRealtimeAdapter = require('../providers/openai/realtime.adapter');
 const GeminiRealtimeAdapter = require('../providers/gemini/realtime.adapter');
 const { normalize } = require('../utils/realtime-normalizer');
+const {
+  estimateBase64DecodedBytes,
+  pcm16DurationMsForBytes,
+  bytesPerSecond,
+} = require('../utils/audio');
+const metrics = require('../services/metrics.service');
 
 class RealtimeService {
   constructor() {
@@ -45,16 +51,32 @@ class RealtimeService {
         buffer: [],
         config: {},
       },
+      // T11: Rate/Backpressure state
+      rate: {
+        sampleRate: this._resolveSampleRate(opts.model) || 16000,
+        // per-second window
+        secWindowStart: createdAt,
+        bytesInSecond: 0,
+        // per-minute APM window (audio ms per minute)
+        minWindowStart: createdAt,
+        audioMsInMinute: 0,
+        // queued audio for throttling/backpressure
+        queue: [], // items: { audio, estBytes, durationMs }
+        draining: false,
+        drainTimer: null,
+  paused: false,
+      },
     };
 
-    this.sessions.set(id, session);
+  this.sessions.set(id, session);
+  metrics.incSessions(1);
     logger.info('Realtime session created', {
       id,
       model: session.model,
       provider: session.provider,
     });
 
-    // Idle timeout enforcement (Phase 1: log only)
+  // Idle timeout enforcement
     const idleSeconds = config.realtime.security?.max_idle_seconds || 60;
     session.idleTimer = setInterval(() => {
       const age = Date.now() - session.lastActivity;
@@ -120,7 +142,11 @@ class RealtimeService {
       case 'input_audio.append': {
         this.ensureUpstream(session)
           .then(() => {
-            session.upstream.adapter.appendAudioBase64?.(msg.audio);
+            try {
+              this._handleAudioAppend(session, msg);
+            } catch (e) {
+              this._sendError(session.ws, 'audio_append_failed', e?.message);
+            }
           })
           .catch((err) => this._sendError(session.ws, 'upstream_init_failed', err?.message));
         return;
@@ -156,8 +182,11 @@ class RealtimeService {
     if (!session) return;
 
     clearInterval(session.idleTimer);
+  try { if (session.rate?.drainTimer) { clearTimeout(session.rate.drainTimer); } } catch (e) { /* ignore */ }
+  if (session.rate) { session.rate.draining = false; session.rate.drainTimer = null; }
     try { session.upstream?.adapter?.close?.(); } catch (e) { /* ignore */ }
-    this.sessions.delete(sessionId);
+  this.sessions.delete(sessionId);
+  metrics.incSessions(-1);
     logger.info('Realtime session closed', { id: sessionId });
   }
 
@@ -219,11 +248,29 @@ class RealtimeService {
   _hookUpstreamMessages(session, provider) {
     const ws = session.ws;
     const adapter = session.upstream.adapter;
+    // Track latency from input commit to first transcript delta
+    let commitAt = 0;
+    const markCommit = () => { commitAt = Date.now(); };
+    // Monkey-patch commit to also mark time
+    const origCommit = adapter.commitAudio?.bind(adapter);
+    if (origCommit) {
+      adapter.commitAudio = () => { try { markCommit(); } catch(_){} return origCommit(); };
+    }
     adapter.onMessage((evt) => {
       // Normalize to unified transcript events
   const unified = normalize(provider, evt);
       if (!unified || unified.length === 0) return;
       for (const u of unified) {
+        // Latency: first transcript.delta after commit
+        if (commitAt && u.type === 'transcript.delta') {
+          metrics.observeLatencyMs(Date.now() - commitAt);
+          commitAt = 0;
+        }
+        // Approximate tokens on transcript.done (simple whitespace-based count)
+        if (u.type === 'transcript.done' && typeof u.text === 'string') {
+          const tokens = u.text.trim().length ? u.text.trim().split(/\s+/).length : 0;
+          metrics.incTranscriptTokens(tokens);
+        }
         this._safeSend(ws, u);
       }
     });
@@ -236,6 +283,7 @@ class RealtimeService {
 
   _sendError(ws, code, message) {
     this._safeSend(ws, { type: 'error', code, message });
+  metrics.incErrors(1);
   }
 
   /**
@@ -249,6 +297,232 @@ class RealtimeService {
     if (/^gemini/i.test(modelId)) return 'gemini';
     if (/^(gpt|whisper|o\d)/i.test(modelId)) return 'openai';
     return undefined;
+  }
+
+  // === T11: Rate limits and backpressure ===
+  _resolveSampleRate(modelId) {
+    try {
+      if (!modelId) return 16000;
+      const models = Array.isArray(config.realtime?.models) ? config.realtime.models : [];
+      const found = models.find(m => m.id === modelId);
+      return found?.input?.sample_rate_hz || 16000;
+    } catch {
+      return 16000;
+    }
+  }
+
+  _resetSecondWindowIfNeeded(session, now) {
+    const secWindowMs = 1000;
+    if (now - session.rate.secWindowStart >= secWindowMs) {
+      session.rate.secWindowStart = now;
+      session.rate.bytesInSecond = 0;
+    }
+  }
+
+  _resetMinuteWindowIfNeeded(session, now) {
+    const minWindowMs = 60000;
+    if (now - session.rate.minWindowStart >= minWindowMs) {
+      session.rate.minWindowStart = now;
+      session.rate.audioMsInMinute = 0;
+    }
+  }
+
+  _emitRateLimitsUpdated(session) {
+    const sr = session.rate.sampleRate || 16000;
+    const bpsLimit = bytesPerSecond(sr, 1);
+    const now = Date.now();
+    const secResetMs = Math.max(0, 1000 - (now - session.rate.secWindowStart));
+    const minResetMs = Math.max(0, 60000 - (now - session.rate.minWindowStart));
+    this._safeSend(session.ws, {
+      type: 'rate_limits.updated',
+      second: {
+        remaining_bytes: Math.max(0, bpsLimit - session.rate.bytesInSecond),
+        limit_bytes: bpsLimit,
+        reset_ms: secResetMs,
+      },
+      minute: {
+        used_ms: session.rate.audioMsInMinute,
+        limit_ms: (config.realtime?.limits?.apm_audio_seconds_per_min || 180) * 1000,
+        reset_ms: minResetMs,
+      },
+    });
+  }
+
+  _handleAudioAppend(session, msg) {
+    const audioB64 = msg?.audio;
+    if (typeof audioB64 !== 'string' || audioB64.length === 0) {
+      throw new Error('audio field (base64) required');
+    }
+
+    const sr = session.rate.sampleRate || 16000;
+    const now = Date.now();
+    this._resetSecondWindowIfNeeded(session, now);
+    this._resetMinuteWindowIfNeeded(session, now);
+
+    // Limits
+    const audioCfg = config.realtime?.audio || {};
+    const maxChunkBytesCfg = audioCfg.max_chunk_bytes || 32768;
+    const targetChunkMs = audioCfg.chunk_target_ms || 50;
+    const maxBufferedMs = audioCfg.max_buffer_ms || 5000;
+
+    // Estimate decoded PCM bytes and ms
+    const estBytes = estimateBase64DecodedBytes(audioB64);
+    const estMs = pcm16DurationMsForBytes(estBytes, sr, 1);
+
+    // Hard limit: chunk too large
+    if (estBytes > maxChunkBytesCfg) {
+      this._sendError(session.ws, 'audio_chunk_exceeds_limit', `max_chunk_bytes=${maxChunkBytesCfg}`);
+      return;
+    }
+
+    // APM minute limit (audio seconds per minute)
+    const apmLimitSec = config.realtime?.limits?.apm_audio_seconds_per_min || 180;
+    const apmLimitMs = apmLimitSec * 1000;
+    if (session.rate.audioMsInMinute + estMs > apmLimitMs) {
+      this._sendError(session.ws, 'apm_exceeded', `limit_ms=${apmLimitMs}`);
+      this._emitRateLimitsUpdated(session);
+      return; // drop this chunk
+    }
+
+    // Per-second throughput limit (raw PCM bps)
+    const bpsLimit = bytesPerSecond(sr, 1);
+    const canSendInSecond = (session.rate.bytesInSecond + estBytes) <= bpsLimit;
+
+    // Backpressure from adapter or per-second limit => enqueue
+    let sent = false;
+    if (canSendInSecond && session.upstream?.adapter?.appendAudioBase64) {
+      try {
+        const ok = session.upstream.adapter.appendAudioBase64(audioB64);
+        if (ok !== false) {
+          // Success; account usage
+          session.rate.bytesInSecond += estBytes;
+          session.rate.audioMsInMinute += estMs;
+          metrics.incAudioSeconds(estMs / 1000);
+          sent = true;
+          this._emitRateLimitsUpdated(session);
+        } else {
+          // Upstream signaled backpressure
+          // We'll enqueue and pause client reads immediately
+        }
+      } catch (e) {
+        // If send fails, fall back to queue
+      }
+    }
+
+    if (!sent) {
+      // Buffer overflow check by total queued ms
+      const queuedMs = session.rate.queue.reduce((acc, it) => acc + (it.durationMs || 0), 0);
+      if (queuedMs + estMs > maxBufferedMs) {
+        this._sendError(session.ws, 'backpressure_buffer_overflow', `max_buffer_ms=${maxBufferedMs}`);
+        return;
+      }
+      session.rate.queue.push({ audio: audioB64, estBytes, durationMs: estMs });
+
+      // Pause if backlog beyond threshold or adapter signaled backpressure
+      const pauseThresholdMs = Math.floor(maxBufferedMs * 0.8);
+      if (queuedMs + estMs >= pauseThresholdMs) {
+        this._pauseClientRead(session, 'backlog');
+      }
+      // Also pause immediately when adapter returned false (backpressure case)
+      // Heuristic: if we attempted to send and failed (sent=false) while seconds window allowed, treat as backpressure
+      if (canSendInSecond) {
+        this._pauseClientRead(session, 'upstream_backpressure');
+      }
+
+      if (!session.rate.draining) {
+        this._scheduleDrain(session, targetChunkMs);
+      }
+    }
+  }
+
+  _scheduleDrain(session, delayMs) {
+    if (session.rate.draining) return;
+    session.rate.draining = true;
+    const run = () => {
+      try {
+        const sr = session.rate.sampleRate || 16000;
+        const now = Date.now();
+        this._resetSecondWindowIfNeeded(session, now);
+        this._resetMinuteWindowIfNeeded(session, now);
+        const bpsLimit = bytesPerSecond(sr, 1);
+        const apmLimitMs = (config.realtime?.limits?.apm_audio_seconds_per_min || 180) * 1000;
+
+        while (session.rate.queue.length > 0) {
+          const next = session.rate.queue[0];
+          // Check limits
+          if (session.rate.audioMsInMinute + next.durationMs > apmLimitMs) {
+            // Can't send now; wait for minute window reset
+            break;
+          }
+          if (session.rate.bytesInSecond + next.estBytes > bpsLimit) {
+            // Wait for second window reset
+            break;
+          }
+          // Try to send
+          const ok = session.upstream?.adapter?.appendAudioBase64?.(next.audio);
+          if (ok === false) {
+            // Upstream backpressure persists; try later
+            this._pauseClientRead(session, 'upstream_backpressure');
+            break;
+          }
+          // Sent successfully
+          session.rate.bytesInSecond += next.estBytes;
+          session.rate.audioMsInMinute += next.durationMs;
+          metrics.incAudioSeconds(next.durationMs / 1000);
+          session.rate.queue.shift();
+          this._emitRateLimitsUpdated(session);
+        }
+      } finally {
+        // Re-schedule if there is still work or limits block us
+        const maxBufferedMs = config.realtime?.audio?.max_buffer_ms || 5000;
+        const resumeThresholdMs = Math.floor(maxBufferedMs * 0.5);
+        const queuedMsNow = session.rate.queue.reduce((acc, it) => acc + (it.durationMs || 0), 0);
+
+        // If backlog has drained sufficiently, resume client reads
+        if (session.rate.paused && queuedMsNow <= resumeThresholdMs) {
+          this._resumeClientRead(session);
+        }
+
+        if (session.rate.queue.length > 0) {
+          const targetChunkMs = config.realtime?.audio?.chunk_target_ms || 50;
+          session.rate.drainTimer = setTimeout(run, targetChunkMs);
+        } else {
+          session.rate.draining = false;
+          session.rate.drainTimer = null;
+        }
+      }
+    };
+    session.rate.drainTimer = setTimeout(run, delayMs);
+  }
+
+  _pauseClientRead(session, reason = 'backpressure') {
+    if (session.rate.paused) return;
+    const ws = session.ws;
+    try {
+      if (ws && ws._socket && typeof ws._socket.pause === 'function') {
+        ws._socket.pause();
+        session.rate.paused = true;
+        this._safeSend(ws, { type: 'warning', code: 'backpressure_paused', reason });
+        this._emitRateLimitsUpdated(session);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  _resumeClientRead(session) {
+    if (!session.rate.paused) return;
+    const ws = session.ws;
+    try {
+      if (ws && ws._socket && typeof ws._socket.resume === 'function') {
+        ws._socket.resume();
+        session.rate.paused = false;
+        this._safeSend(ws, { type: 'warning', code: 'backpressure_resumed' });
+        this._emitRateLimitsUpdated(session);
+      }
+    } catch (e) {
+      // ignore
+    }
   }
 }
 
