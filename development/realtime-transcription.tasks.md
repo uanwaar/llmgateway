@@ -88,7 +88,7 @@ Notes (Phase 1 completed):
 ## Phase 2 — Provider Adapters
 
 ### T05 — OpenAI Realtime adapter (WebSocket)
-- Status: Done | Effort: M
+- Status: Todo | Effort: M
 - Description: Upstream WS client to OpenAI. Map gateway events to OpenAI events and back.
 - Files:
   - Create: `src/providers/openai/realtime.adapter.js`
@@ -105,7 +105,7 @@ Notes (Phase 1 completed):
   - Proper error mapping to gateway `error` envelope.
 
 ### T06 — Gemini Live adapter (WebSocket)
-- Status: Done | Effort: M
+- Status: Todo | Effort: M
 - Description: Upstream WS client to Gemini Live. Implement `setup`, `realtimeInput`, manual/automatic VAD.
 - Files:
   - Create: `src/providers/gemini/realtime.adapter.js`
@@ -120,7 +120,7 @@ Notes (Phase 1 completed):
   - Happy path: append audio, either manual turn or AAD config; receive transcription mapped to `transcript.delta|done`.
 
 ### T07 — Event normalization layer
-- Status: Done | Effort: S
+- Status: Todo | Effort: S
 - Description: Normalize provider events to the gateway schema.
 - Files:
   - Create: `src/utils/realtime-normalizer.js`
@@ -131,7 +131,7 @@ Notes (Phase 1 completed):
   - Unit tests cover mapping for OpenAI `response.*` and Gemini `serverContent` → `transcript.*`, `rate_limits.updated`, `error`.
 
 ### T08 — Audio utils (PCM16 framing and validation)
-- Status: Done | Effort: S
+- Status: Todo | Effort: S
 - Description: Validate PCM16 mono chunks, base64 decode/encode, chunk sizing, and optional resampling stub.
 - Files:
   - Create: `src/utils/audio.js`
@@ -140,15 +140,6 @@ Notes (Phase 1 completed):
 - Context: After T04.
 - Acceptance:
   - Unit tests: invalid mime/sample rate rejected; chunk size caps enforced.
-
-Notes (Phase 2 completed):
-- Implemented OpenAI and Gemini provider adapters (WebSocket clients, event mapping, normalization, provider token support).
-- Added unified event normalizer for OpenAI and Gemini events.
-- Created audio utils for PCM16 validation, base64 framing, duration/chunk helpers.
-- Integrated adapters and audio utils into realtime service; session.update acknowledged locally, provider adapter bound on first event, audio guardrails enforced.
-- Added and passed unit tests for normalization and audio utils (2 suites, 8 tests).
-- Added integration tests for OpenAI/Gemini adapters and event normalization.
-- Added E2E smoke tests for OpenAI and Gemini via mock providers; server shutdown and test lifecycle hardened for CI.
 
 ---
 
@@ -197,7 +188,7 @@ Notes (Phase 2 completed):
 ## Phase 4 — Tests, Examples, and Ops
 
 ### T12 — Integration tests with mock providers
-- Status: Partial | Effort: M
+- Status: Todo | Effort: M
 - Description: Mock WS servers that emit representative OpenAI and Gemini events. Test normalization and flows.
 - Files:
   - Create: `tests/integration/realtime/openai.mock-server.js`
@@ -210,7 +201,7 @@ Notes (Phase 2 completed):
   - Jest passes in CI for happy path and key error paths.
 
 ### T13 — E2E smoke test and example client
-- Status: Partial | Effort: S
+- Status: Todo | Effort: S
 - Description: Minimal WS client sending PCM16 chunks and asserting transcript stream.
 - Files:
   - Create: `examples/javascript/realtime-transcription.js`

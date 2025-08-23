@@ -14,13 +14,11 @@ const fs = require('fs');
 const config = require('./config');
 const logger = require('./utils/logger');
 const url = require('url');
-const rateLimit = require('./middleware/rateLimit.middleware');
 
 // Lazily required to avoid circular deps if any
 let realtimeController;
 
 let server = null;
-let forceCloseTimer = null;
 
 /**
  * Start the HTTP/HTTPS server
@@ -28,7 +26,7 @@ let forceCloseTimer = null;
  */
 async function start(app) {
   return new Promise((resolve, reject) => {
-  const port = (config.server && typeof config.server.port !== 'undefined') ? config.server.port : 8080;
+    const port = config.server.port || 8080;
     const host = config.server.host || '0.0.0.0';
 
     // Create server (HTTP or HTTPS based on config)
@@ -109,19 +107,6 @@ async function stop() {
 
     logger.info('Starting server shutdown');
 
-    // Attempt to close realtime WS controller if loaded
-    try {
-      if (realtimeController && typeof realtimeController.close === 'function') {
-        realtimeController.close();
-      }
-      // Reset controller so a fresh instance is created on next start
-      try {
-        const path = require.resolve('./controllers/realtime.controller');
-        if (require.cache[path]) delete require.cache[path];
-      } catch (e) { /* ignore */ }
-      realtimeController = null;
-    } catch (e) { /* ignore */ }
-
     // Stop accepting new connections
     server.close((error) => {
       if (error) {
@@ -130,19 +115,14 @@ async function stop() {
       }
 
       logger.info('Server stopped successfully');
-  try { if (rateLimit && typeof rateLimit.stop === 'function') rateLimit.stop(); } catch (e) { /* ignore */ }
-      if (forceCloseTimer) {
-        try { clearTimeout(forceCloseTimer); } catch { /* ignore */ }
-        forceCloseTimer = null;
-      }
       server = null;
       resolve();
     });
 
-    // Force close after timeout (best-effort)
-    forceCloseTimer = setTimeout(() => {
+    // Force close after timeout
+    setTimeout(() => {
       logger.warn('Force closing server after timeout');
-      try { server.close(); } catch (e) { /* ignore */ }
+      server.destroy();
       server = null;
       resolve();
     }, 10000);

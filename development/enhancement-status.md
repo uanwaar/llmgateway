@@ -7,39 +7,30 @@ How to use
 
 ## Current Summary
 - Feature flag: realtime.enabled = (development=true, production=false)
-- WS path: /v1/realtime/transcribe — wired (handshake-only Phase 1, adapters integrated Phase 2)
-- Providers: OpenAI (WS) — adapter integrated, Gemini Live — adapter integrated
-- VAD modes: server_vad (default), semantic_vad (OpenAI), manual — implemented in Gemini adapter
+- WS path: /v1/realtime/transcribe — wired (handshake-only Phase 1)
+- Providers: OpenAI (WS) — (not integrated), Gemini Live — (not integrated)
+- VAD modes: server_vad (default), semantic_vad (OpenAI), manual — (not implemented)
 
 ## Milestones
 - [x] M1: WS endpoint returns session.created (T03) — Phase 1 complete
-- [x] M2: OpenAI path end-to-end transcript (T05) — adapter, normalization, E2E smoke via mock
-- [x] M3: Gemini path end-to-end transcript (T06) — adapter, normalization, E2E smoke via mock
+- [ ] M2: OpenAI path end-to-end transcript (T05)
+- [ ] M3: Gemini path end-to-end transcript (T06)
 - [ ] M4: Limits/metrics/logging in place (T10–T11)
 - [ ] M5: Docs, example, and smoke tests (T13–T15)
 
 ## Recent Updates
-- 2025-08-21: Phase 2 - Provider adapters, event normalization, audio utils, and integration/E2E tests implemented.
+- 2025-08-21: Phase 1 - Realtime handshake implemented. Added config plumbing, WS upgrade handler, minimal controller and session service. Dev smoke test (examples/javascript/realtime-smoke.js) connected to the gateway and verified session.created → session.updated.
 
 Details:
-- `src/providers/openai/realtime.adapter.js`: OpenAI WS client, event mapping, normalization, provider token support.
-- `src/providers/gemini/realtime.adapter.js`: Gemini WS client, setup, AAD/manual VAD, normalization.
-- `src/utils/realtime-normalizer.js`: Unified event mapping for OpenAI/Gemini.
-- `src/utils/audio.js`: PCM16 validation, base64 framing, duration/chunk helpers.
-- `src/services/realtime.service.js`: Adapter binding, provider token storage, session.update ack, audio guardrails, normalized relay.
-- `tests/unit/normalizer.test.js`, `tests/unit/audio.test.js`: Unit tests for normalization and audio utils.
-- `tests/integration/gateway-realtime.test.js`: Integration tests for OpenAI/Gemini adapters and event normalization.
-- `tests/e2e/realtime-smoke.e2e.test.js`, `tests/e2e/realtime-gemini-smoke.e2e.test.js`: E2E smoke tests for OpenAI and Gemini via mock providers.
+- `package.json`: added `ws@^8.17.0`.
+- `config/default.yaml`: added `realtime` block (enabled=false by default); `config/development.yaml` enables realtime for local development.
+- `src/config/index.js`: realtime schema/ defaults validated and surfaced.
+- `src/server.js`: added HTTP upgrade listener for `/v1/realtime/transcribe` (safe reject when disabled).
+- `src/controllers/realtime.controller.js`: WebSocketServer (noServer) with basic auth gate; emits `session.created` and stubs message/close handling.
+- `src/services/realtime.service.js`: in-memory session registry, idle-timeout cleanup, simple `session.update` → `session.updated` flow.
 
-Test results:
-- Unit tests: PASS (2 suites, 8 tests)
-- Integration: PASS (OpenAI + Gemini normalization)
-- E2E smoke: PASS (OpenAI + Gemini via mock)
-
-Behavior:
-- Client receives session.created, sends session.update (acknowledged locally), then provider adapter is bound and events are relayed/normalized.
-- Audio chunk validation and error handling enforced.
-- Server shutdown and test lifecycle hardened for CI.
+Smoke test:
+- Ran example `examples/javascript/realtime-smoke.js` against local server on port 8081; observed `session.created` and `session.updated` events.
 
 ## Blockers
 - None
