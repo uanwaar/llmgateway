@@ -12,8 +12,15 @@ const AUDIO_FILE = process.env.AUDIO_FILE || 'tests/audio-files/16KHz/11s.wav';
 const MODEL = process.env.MODEL || 'gemini-2.0-flash-live-001';
 // VAD options: 'manual' (use commit to delimit the turn) or 'server_vad'
 const VAD_TYPE = process.env.VAD_TYPE || 'manual';
-const SUPPRESS_MODEL = (process.env.SUPPRESS_MODEL || '1') === '1';
-
+// Optional VAD tuning (only used when VAD_TYPE === 'server_vad')
+const VAD_SILENCE_MS = Number(process.env.VAD_SILENCE_MS || '500') || undefined;
+const VAD_PREFIX_MS = Number(process.env.VAD_PREFIX_MS || '') || undefined;
+const VAD_START_SENS = process.env.VAD_START_SENS || undefined; // e.g., HIGH|MEDIUM|LOW
+const VAD_END_SENS = process.env.VAD_END_SENS || undefined; // e.g., HIGH|MEDIUM|LOW
+// Auto-VAD tail handling
+const AUTO_VAD_APPEND_SILENCE_MS = Number(process.env.AUTO_VAD_APPEND_SILENCE_MS || '1200');
+const AUTO_VAD_POST_WAIT_MS = Number(process.env.AUTO_VAD_POST_WAIT_MS || '1500');
+const AUTO_VAD_COMMIT_FALLBACK = (process.env.AUTO_VAD_COMMIT_FALLBACK || '0') === '1';
 // Sends JSON with backpressure awareness
 function sendJSON(ws, obj) {
   return new Promise((resolve, reject) => {
@@ -71,20 +78,28 @@ async function main() {
       console.log('✅ WS connected');
 
       // Configure session: transcription-only at provider level
-      const sessionUpdate = {
+  const sessionUpdate = {
         type: 'session.update',
         data: {
           model: MODEL,
           // Strict instruction (optional when suppressing model output)
           system_instruction:
-            'You are a transcription assistant. Only transcribe the audio you receive without any additional commentary.',
+            'You are a transcription assistant. Only transcribe the user audio verbatim. Do not add any commentary or responses.',
           // Enable input transcription at provider
           input_audio_transcription: {},
           response_modalities: ['TEXT'],
           // Optional debug mirror
           include: { raw_upstream: process.env.DEBUG_UPSTREAM === '1' },
           // VAD selection remains client-owned
-          vad: VAD_TYPE === 'server_vad' ? { type: 'server_vad' } : { type: 'manual' }
+          vad: VAD_TYPE === 'server_vad'
+            ? {
+                type: 'server_vad',
+                ...(VAD_SILENCE_MS ? { silence_duration_ms: VAD_SILENCE_MS } : {}),
+                ...(VAD_PREFIX_MS ? { prefix_padding_ms: VAD_PREFIX_MS } : {}),
+                ...(VAD_START_SENS ? { start_sensitivity: VAD_START_SENS } : {}),
+                ...(VAD_END_SENS ? { end_sensitivity: VAD_END_SENS } : {}),
+              }
+            : { type: 'manual' }
         }
       };
 
@@ -93,7 +108,7 @@ async function main() {
 
       // Prepare audio into PCM16 chunks (avoid >5s buffer; chunk ~320ms)
       console.log(`🎤 Loading audio: ${AUDIO_FILE}`);
-      const { chunks, seconds } = await toPcm16MonoBase64Chunks(AUDIO_FILE, 16000, 320);
+  const { chunks, seconds } = await toPcm16MonoBase64Chunks(AUDIO_FILE, 16000, 200);
       console.log(`ℹ️  Audio duration ≈ ${seconds.toFixed(2)}s, chunks: ${chunks.length}`);
 
       // If manual VAD, explicitly mark start of activity
@@ -118,14 +133,29 @@ async function main() {
         }
       }
 
-      // If manual VAD, signal end of activity just after last audio
+      // If manual VAD, signal end of activity and commit to delimit the turn
       if (VAD_TYPE === 'manual') {
         await sendJSON(ws, { type: 'input_audio.activity_end' });
+        await sendJSON(ws, { type: 'input_audio.commit' });
+        console.log('🧾 Sent input_audio.commit (manual VAD)');
+      } else {
+        // Auto VAD: do not commit; allow server to detect end-of-speech
+        // Help VAD by appending zero-PCM silence (configurable)
+        const sr = 16000;
+        const ms = Math.max(0, AUTO_VAD_APPEND_SILENCE_MS | 0);
+        if (ms > 0) {
+          const bytes = (sr * 2 * ms) / 1000; // mono, 16-bit
+          const silence = Buffer.alloc(bytes, 0).toString('base64');
+          await sendJSON(ws, { type: 'input_audio.append', audio: silence });
+        }
+        // Allow VAD silence window to elapse (configurable)
+        await sleep(Math.max(0, AUTO_VAD_POST_WAIT_MS | 0));
+        // Optional commit fallback (forces turn closure via gateway normalization)
+        if (AUTO_VAD_COMMIT_FALLBACK) {
+          await sendJSON(ws, { type: 'input_audio.commit' });
+          console.log('🧾 Sent input_audio.commit (auto VAD fallback)');
+        }
       }
-
-      // Commit to delimit the turn
-      await sendJSON(ws, { type: 'input_audio.commit' });
-      console.log('🧾 Sent input_audio.commit');
 
       // Safety timeout in case no transcript arrives
       setTimeout(() => {

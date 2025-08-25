@@ -356,7 +356,7 @@ realtime:
   audio:
     max_buffer_ms: 5000
     chunk_target_ms: 50
-    max_chunk_bytes: 32768
+    max_chunk_bytes: 262144  # 256KB
   vad:
     server_vad:
       interrupt_response: true
