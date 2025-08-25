@@ -27,14 +27,17 @@ class GeminiRealtimeAdapter {
     this._onMessage = null;
     this._onError = null;
     this._onClose = null;
+  this._manualVAD = false;
   }
 
   async connect({ systemInstruction, vad } = {}) {
     if (!this.ai) throw new Error('Missing @google/genai dependency');
+  this._manualVAD = !!(vad && vad.type === 'manual');
     this.session = await this.ai.live.connect({
       model: this.model,
       config: {
         responseModalities: ['TEXT'],
+        maxOutputTokens: 1,
         systemInstruction,
         inputAudioTranscription: {},
         realtimeInputConfig: mapGeminiRealtimeInputConfig(vad),
@@ -79,8 +82,9 @@ class GeminiRealtimeAdapter {
       sendFn();
       return true;
     }
+    // Enqueue for later - this is not backpressure, it's normal connection delay
     this._enqueueOutbound(sendFn);
-    return false;
+    return true;
   }
 
   // For manual VAD, represent commit as turnComplete using client content with empty turns
@@ -97,7 +101,22 @@ class GeminiRealtimeAdapter {
     };
     if (this.isConnected()) { sendFn(); return true; }
     this._enqueueOutbound(sendFn);
-    return false;
+    return true;
+  }
+
+  // Explicit client-controlled markers
+  activityStart() {
+    const sendFn = () => { try { this.session?.sendRealtimeInput({ activityStart: {} }); } catch (_) { /* ignore */ } };
+    if (this.isConnected()) { sendFn(); return true; }
+    this._enqueueOutbound(sendFn);
+    return true;
+  }
+
+  activityEnd() {
+    const sendFn = () => { try { this.session?.sendRealtimeInput({ activityEnd: {} }); } catch (_) { /* ignore */ } };
+    if (this.isConnected()) { sendFn(); return true; }
+    this._enqueueOutbound(sendFn);
+    return true;
   }
 
   onMessage(cb) {

@@ -18,6 +18,8 @@ const wss = new WebSocketServer({ noServer: true });
 wss.on('connection', async (ws, request) => {
   try {
     const { query } = url.parse(request.url, true);
+  const pathname = (url.parse(request.url).pathname || '').toLowerCase();
+  const mode = pathname.endsWith('/realtime/transcription') ? 'transcription' : 'default';
 
     // Basic auth gate: require Authorization header if configured
     if (config.auth?.requireAuthHeader) {
@@ -36,6 +38,7 @@ wss.on('connection', async (ws, request) => {
     const session = await realtimeService.createSession(ws, request, {
       model: query.model,
       provider: query.provider,
+      mode,
     });
 
     // Initial event to client

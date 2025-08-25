@@ -15,12 +15,17 @@ How to use
 - VAD modes: server_vad is configurable and forwarded to providers; manual VAD is fully supported.
 	- Exposed to clients via `session.update.vad` with fields: `type` ('server_vad' | 'manual'), `silence_duration_ms`, `prefix_padding_ms`, `start_sensitivity`, `end_sensitivity`.
 	- OpenAI: mapped to `turn_detection` (server_vad params) or disabled (`type: 'none'`) for manual.
-	- Gemini: mapped to `realtimeInputConfig.automaticActivityDetection` (sensitivities/prefix/silence) or disabled for manual; commits delimit turns.
+	- Gemini: mapped to `realtimeInputConfig.automaticActivityDetection` (sensitivities/prefix/silence) or disabled for manual.
+	- Manual VAD (client-owned markers): Clients send `input_audio.activity_start` before audio and `input_audio.activity_end` after the last PCM; then send `input_audio.commit`. Gateway forwards markers and does not auto-inject. Gemini-style `realtimeInput.activityStart/End` are normalized accordingly.
  - Metrics & logging: T12 completed — lightweight `metrics.service.js` added and wired into the realtime service; see Recent Updates.
 - Rate limits & backpressure (T11):
-	- Enforces APM (audio seconds per minute) and per-second throughput (based on model sample rate).
-	- Bounded queue by `realtime.audio.max_buffer_ms`; emits `rate_limits.updated`.
-	- Pauses client reads (`ws._socket.pause()`) on backlog or upstream backpressure; resumes when drained; emits `warning` events `backpressure_paused`/`backpressure_resumed`.
+	- Enforces APM (audio seconds per minute) limits to prevent cost blowups.
+	- Bounded queue by `realtime.audio.max_buffer_ms`; emits `rate_limits.updated` with APM usage.
+	- Pauses client reads (`ws._socket.pause()`) on buffer overflow or upstream adapter backpressure; resumes when drained; emits `warning` events `backpressure_paused`/`backpressure_resumed`.
+	- Per-second artificial throttling removed (was causing idle timeouts with chunked audio streaming).
+ - Audio format (by provider): Gemini expects 16-bit PCM, 16kHz, mono, little-endian (`audio/pcm;rate=16000`); OpenAI realtime path configured at 24kHz (`audio/pcm;rate=24000`). Gateway accepts base64-encoded PCM in JSON events.
+ - Protocol: Clients may send either gateway-native events (`input_audio.append`/`commit`) or Gemini-style shapes (`setup`, `realtimeInput.audio`, `clientContent.turnComplete`); the service normalizes both.
+ - Transcription mode: Requests to `/v1/realtime/transcription` run in a strict transcription mode (no model commentary) and auto-close the WS shortly after `transcript.done`.
 
 ## Milestones
 - [x] M1: WS endpoint returns session.created (T03) — Phase 1 complete
@@ -32,6 +37,21 @@ How to use
 - [ ] M6: Docs, example, and smoke tests (T14–T16)
 
 ## Recent Updates
+- 2025-08-25: Audio/VAD/behavior alignment and UX polish
+	- Audio & protocol: Service now accepts `input_audio.append` with either a base64 string or `{ data, mime_type }`, and normalizes Gemini-style messages (`setup`, `realtimeInput.audio`, `clientContent.turnComplete`) into gateway events.
+	- Constraints: `realtime.audio.max_chunk_bytes=32768` (≈1.0s at 16kHz PCM16), `max_buffer_ms=5000`, `chunk_target_ms=50`; APM limit `apm_audio_seconds_per_min=180`. Emits `rate_limits.updated` with `{ minute: { used_ms, limit_ms, reset_ms } }`.
+	- VAD: Manual VAD is now client-owned. Clients must send `input_audio.activity_start` and `input_audio.activity_end` (or Gemini-style `realtimeInput.activityStart/End`, which the gateway normalizes). The gateway no longer injects markers. `input_audio.commit` still delimits the turn. Server VAD mapping remains for both providers.
+	- Commentary suppression: In transcription mode, normalized events are tagged with `meta.source` and model-sourced text is filtered out; only input transcription reaches clients. System instructions via `session.update` (`prompt`/`systemInstruction`) are still honored.
+	- Fast close: In transcription mode the gateway closes the WS ~150ms after `transcript.done`, matching the reference Gemini script behavior.
+	- Stability: Upstream connection de-dup added to prevent parallel connects; optional upstream debug mirroring available via `session.update.include.raw_upstream=true` or env `REALTIME_DEBUG_UPSTREAM=1` (events emitted as `debug.upstream`).
+	- maxOutputTokens: 1 in Gemini Adapter to minimise model response that cannot be suppressed in manual vad.
+
+- 2025-08-23: Rate limiting optimized — Removed artificial per-second throughput bottlenecks that were causing idle timeouts.
+	- Service: `src/services/realtime.service.js` no longer enforces 32KB/second limit (which exactly matched 16kHz PCM natural rate, creating zero headroom).
+	- Preserved essential protections: APM limits (180s audio/min), upstream backpressure detection, buffer overflow prevention (5s max buffer).
+	- Rate events: `rate_limits.updated` now only reports APM usage; per-second tracking removed.
+	- Issue resolved: Scripts like `scripts/manual-realtime-gemini.js` no longer hit artificial bottlenecks that triggered socket pause → idle timeout cycle.
+	- Tests: Unit tests for APM and upstream backpressure still pass; artificial per-second limits removed.
 - 2025-08-23: VAD controls added and wired through adapters.
 	- Util: `src/utils/vad.js` with provider mappings (OpenAI turn_detection; Gemini automaticActivityDetection).
 	- Service: passes `vad` from `session.update` to Gemini adapter on connect; OpenAI uses mapping on `transcription_session.update`.

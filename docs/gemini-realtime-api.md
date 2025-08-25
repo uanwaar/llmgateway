@@ -70,7 +70,7 @@ While the Live API communicates over WebSockets, the recommended best practice i
   "setup": {
     "model": "gemini-live-2.5-flash-preview",
     "generationConfig": {
-      "responseModalities": ["TEXT", "AUDIO"],
+  "responseModalities": ["TEXT"],
       "temperature": 0.7,
       "maxOutputTokens": 8192
     },
@@ -110,51 +110,121 @@ Available voices vary by model type:
 - **Half-cascade**: Puck, Charon, Kore, Fenrir, Aoede, Leda, Orus, Zephyr
 - **Native audio**: Full TTS voice list available
 
-### Audio Transcription
-Enable input/output transcription:
+<!-- Transcription enablement is documented in the Realtime Transcription section to avoid duplication. -->
+
+## Realtime Transcription
+
+This section focuses on real-time speech-to-text (STT) for user audio and optional text transcription of model audio output. It consolidates setup, streaming, and event handling so you can wire Gemini Live into a voice UX quickly and reliably.
+
+### Enable transcription in setup
+
+- For voice sessions, set `responseModalities` to `AUDIO` and toggle transcription:
+  - `inputAudioTranscription`: emits live transcripts of user speech.
+  - `outputAudioTranscription`: emits live transcripts aligned with model-generated audio.
+
+Example setup (fragment):
 ```json
 {
-  "inputAudioTranscription": {},
-  "outputAudioTranscription": {}
-}
-```
-
-## Voice Activity Detection (VAD)
-
-### Automatic VAD (Default)
-```json
-{
-  "realtimeInputConfig": {
-    "automaticActivityDetection": {
-      "disabled": false,
-      "startOfSpeechSensitivity": "START_SENSITIVITY_HIGH",
-      "endOfSpeechSensitivity": "END_SENSITIVITY_HIGH",
-      "prefixPaddingMs": 20,
-      "silenceDurationMs": 100
-    }
+  "setup": {
+    "model": "gemini-live-2.5-flash-preview",
+    "generationConfig": {
+      "responseModalities": ["AUDIO"],
+      "temperature": 0.7
+    },
+    "speechConfig": {
+      "languageCode": "en-US",
+      "voiceConfig": { "prebuiltVoiceConfig": { "voiceName": "Kore" } }
+    },
+    "inputAudioTranscription": {},
+    "outputAudioTranscription": {}
   }
 }
 ```
 
-### Manual VAD
-```json
-{
-  "realtimeInputConfig": {
-    "automaticActivityDetection": {
-      "disabled": true
-    }
-  }
-}
-```
+Notes
+- Use `AUDIO` for response modality in speech-first sessions. Text-only (`TEXT`) sessions can still enable input transcription to show live captions while the model returns text.
+- Native audio models auto-detect language; half-cascade models respect `speechConfig.languageCode`.
 
-When disabled, send activity markers:
+### Stream audio correctly
+
+- Use the input format from Audio Format Requirements (PCM16, 16 kHz, mono, little‑endian; MIME: `audio/pcm;rate=16000`).
+- Chunking: send small frames frequently for low latency.
+  - 20–50 ms per chunk works well (20 ms at 16 kHz ≈ 320 samples ≈ 640 bytes; 40 ms ≈ 1280 bytes).
+  - Base64-encode the raw PCM chunk and send as `realtimeInput.audio` messages.
+- Example client chunk message:
 ```json
 {
   "realtimeInput": {
-    "activityStart": {}
+    "audio": { "data": "base64_pcm_chunk", "mimeType": "audio/pcm;rate=16000" }
   }
 }
 ```
+
+### Voice Activity Detection (VAD) and turns
+
+- Automatic VAD (recommended): configure sensitivity in `realtimeInputConfig.automaticActivityDetection`. The server detects start/end of speech and completes the user turn automatically.
+- Manual VAD: disable automatic detection and bracket speech with activity markers.
+  - Start of user speech:
+    ```json
+    { "realtimeInput": { "activityStart": {} } }
+    ```
+  - End of user speech:
+    ```json
+    { "realtimeInput": { "activityEnd": {} } }
+    ```
+  - After `activityEnd`, you can mark a boundary with `clientContent.turnComplete: true` if you're also sending text turns. Note: `turnComplete` does not suppress model output; it only closes the turn.
+
+SDK vs raw payload shape
+- SDKs typically accept markers at the top level, e.g. `sendRealtimeInput({ activityStart: {} })` and `sendRealtimeInput({ activityEnd: {} })`.
+- The raw WebSocket message shape is `{ "realtimeInput": { "activityStart": {} } }` and `{ "realtimeInput": { "activityEnd": {} } }`.
+
+Transcription‑only (no modelTurn commentary)
+- The API will generate a `modelTurn` at turn end unless you prevent or ignore it. Options:
+  - Prefer instructions: keep `responseModalities: ["TEXT"]` and use a strict system instruction like “Only transcribe; do not respond.” (works well with auto VAD).
+  - Client-side: ignore/drop `serverContent.modelTurn` events if you only need transcripts.
+  - Note: setting `maxOutputTokens` to 0 is not allowed by Live API (must be positive) and may also prevent transcript delivery; avoid this approach. Set to 1 to minimise the output response.
+
+### Receiving transcripts (input and output)
+
+With transcription enabled:
+- You will receive live, incremental (partial) and final transcripts for user audio (input) and model audio (output) within the realtime stream.
+- SDKs expose transcript fields on streamed responses (for example, properties for input/output transcription events). Expect fields indicating whether a transcript segment is final vs partial.
+- For text responses (when `TEXT` is the response modality), transcripts arrive as normal `modelTurn.parts[].text`; for `AUDIO` responses, output transcripts arrive as transcription events alongside the audio chunks.
+
+Practical tips
+- Render partial input transcripts as captions immediately; replace them when the final segment arrives.
+- Output transcripts are handy for accessibility and for building transcripts/SRT/VTT after a call.
+
+### Barge-in and interruption
+
+- If the user speaks while the model is talking, automatic VAD can trigger an interruption (barge-in). The server signals this with `interrupted: true` in `serverContent`.
+- You can also proactively barge-in by starting a new user activity (`activityStart`) or sending new `clientContent` while output audio is playing.
+- On interruption, stop playing current TTS frames, then continue streaming input audio; the model will pivot to the new user turn.
+
+### Observability and quotas
+
+- Use `usageMetadata` to monitor token usage. Audio input contributes to prompt tokens; output audio contributes to response tokens.
+- See Rate Limits for session duration limits; enable context window compression for longer-running calls.
+
+### Common pitfalls to avoid
+
+- Sample rate mismatch: ensure 16 kHz input; resample if your capture device is 44.1/48 kHz.
+- Stereo input: downmix to mono before encoding.
+- Endianness: ensure little-endian for PCM16; incorrect endianness yields garbled audio and poor ASR.
+- Large chunks: sending multi-second chunks increases latency and harms VAD; prefer 20–50 ms frames.
+- Backpressure: respect network backpressure and avoid uncontrolled buffering when UI thread is slow.
+
+### Minimal flow checklist
+
+- [ ] Connect with Live API using the SDK, set `responseModalities` and speech/voice config.
+- [ ] Enable `inputAudioTranscription` (and `outputAudioTranscription` if you need captions for TTS).
+- [ ] Stream base64 PCM16 16 kHz mono frames every 20–50 ms.
+- [ ] Use automatic VAD or send `activityStart`/`activityEnd` markers for manual control.
+- [ ] Handle partial and final transcripts for input/output.
+- [ ] Implement barge-in by stopping TTS on `interrupted: true` and accepting new input.
+
+
+<!-- VAD configuration and markers are covered under Realtime Transcription > Voice Activity Detection (VAD) and turns to avoid duplication. -->
 
 ## Message Types
 

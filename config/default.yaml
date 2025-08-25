@@ -308,6 +308,7 @@ security:
 realtime:
   enabled: false
   models:
+    # OpenAI Realtime Models
     - id: gpt-4o-realtime-preview-2025-06-03
       provider: openai
       input:
@@ -320,7 +321,33 @@ realtime:
         sample_rate_hz: 24000
         mime_type: "audio/pcm;rate=24000"
       vad_default: server_vad
+    # OpenAI Transcription Models  
+    - id: gpt-4o-transcribe
+      provider: openai
+      input:
+        sample_rate_hz: 24000
+        mime_type: "audio/pcm;rate=24000"
+      vad_default: server_vad
+    - id: gpt-4o-mini-transcribe
+      provider: openai
+      input:
+        sample_rate_hz: 24000
+        mime_type: "audio/pcm;rate=24000"
+      vad_default: server_vad
+    - id: whisper-1
+      provider: openai
+      input:
+        sample_rate_hz: 16000
+        mime_type: "audio/pcm;rate=16000"
+      vad_default: server_vad
+    # Gemini Live Models
     - id: gemini-live-2.5-flash-preview
+      provider: gemini
+      input:
+        sample_rate_hz: 16000
+        mime_type: "audio/pcm;rate=16000"
+      vad_default: server_vad
+    - id: gemini-2.0-flash-live-001
       provider: gemini
       input:
         sample_rate_hz: 16000
