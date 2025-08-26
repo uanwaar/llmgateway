@@ -15,8 +15,9 @@ function mapOpenAITurnDetection(vad) {
     };
   }
   if (vad.type === 'manual') {
-    // Disable provider VAD entirely; rely on client commit
-    return { type: 'none' };
+  // Disable provider VAD entirely; rely on client commit
+  // OpenAI expects null to disable turn_detection
+  return null;
   }
   return defaults;
 }

@@ -240,7 +240,7 @@ class OpenAITranscriptionTester {
     async sendTestAudio(ws, testResult) {
         // Try to load actual audio file first
         const audioFiles = [
-            path.join(__dirname, '../audio-files/24KHz/20s.wav')
+            path.join(__dirname, '../audio-files/24KHz/11s.wav')
         ];
         
         let audioData = null;
@@ -336,7 +336,7 @@ class OpenAITranscriptionTester {
 
         // Test different transcription models
         const models = [
-            'gpt-4o-mini-transcribe'
+            'whisper-1'
         ];
 
         // Different configuration scenarios
