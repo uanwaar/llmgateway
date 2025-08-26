@@ -24,7 +24,7 @@ logging:
   level: "info"
 
 realtime:
-  enabled: false
+  enabled: true
   format: "json"
 
 rateLimit:

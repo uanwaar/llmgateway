@@ -398,6 +398,31 @@ except FileNotFoundError:
     print("Audio file not found")
 
 # Async version with aiohttp
+
+    ## Realtime Transcription (WebSocket)
+
+    Stream audio and receive live transcripts over a single WS endpoint.
+
+    - Endpoint: `ws://localhost:8080/v1/realtime/transcription`
+    - Docs: `docs/realtime-transcription-api-reference.md` (third‑party client guide)
+    - Full feature doc: `docs/realtime-transcription.md`
+    - Examples:
+      - JavaScript: `examples/javascript/realtime-transcription.js`
+      - Python: `examples/python/realtime_transcription.py`
+      - Shell (websocat): `examples/curl/realtime-transcription-websocket.sh`
+
+    Quickstart
+    1) Connect a WS client and wait for `{ type: 'session.created' }`.
+    2) Send `session.update` with at least `model` (mandatory for reliable routing). Optional: `language`, `vad` (manual or server_vad), `prompt`.
+    3) Stream audio frames as Base64 PCM16 via `input_audio.append`.
+       - Manual VAD: send `input_audio.activity_start` → frames → `input_audio.activity_end` → `input_audio.commit`.
+       - Server VAD: provider auto-detects boundaries; you may still send a fallback `commit`.
+    4) Read `transcript.delta` and finalize on `transcript.done` (socket auto‑closes shortly after in transcription mode).
+
+    Notes
+    - OpenAI path expects 24 kHz PCM16 mono; Gemini path expects 16 kHz.
+    - Keep chunks small (20–50 ms for lowest latency; ≤ 200 ms acceptable). Stay below the ~32 KB decoded chunk cap.
+    - Monitor backpressure (bufferedAmount) and heed `warning` events (`backpressure_paused/resumed`).
 async def async_chat_completion():
     async with aiohttp.ClientSession() as session:
         data = {

@@ -306,7 +306,7 @@ security:
 
 # Realtime feature configuration (gateway-level)
 realtime:
-  enabled: false
+  enabled: true
   models:
     # OpenAI Realtime Models
     - id: gpt-4o-realtime-preview-2025-06-03
