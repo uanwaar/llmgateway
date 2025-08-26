@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.2.0 - 2025-07-25
+
+### ✨ New Features
+- feat: Update API request and response structure to use 'input' instead of 'messages' and enhance response handling (3567b01)
+
+### 📚 Documentation
+- docs: update documentation for v0.1.0 (82ee74e)
+
+### 🔧 Other Changes
+- Merge branch 'main' of https://github.com/uanwaar/llmgateway (2f5a0e2)
+- Add load and stress testing suites for LLM Gateway (d14724a)
+- Delete development directory (10ce7ef)
+
+# Changelog
+
 ## v0.1.0 - 2025-07-25
 
 ### Initial Release
