@@ -57,18 +57,19 @@ function normalizeGemini(evt) {
   if (typeof sc.text === 'string' && sc.text.length) {
     out.push({ type: 'transcript.delta', text: sc.text, meta: { provider: 'gemini', source: 'model' } });
   }
-  // Model output text (not strictly input transcription, but useful for debugging)
+  // Model output text (Gemini commentary)
   if (sc && sc.modelTurn && Array.isArray(sc.modelTurn.parts)) {
-    const modelText = sc.modelTurn.parts
-      .map((p) => (typeof p.text === 'string' ? p.text : ''))
-      .filter(Boolean)
-      .join('');
-  if (modelText) out.push({ type: 'transcript.delta', text: modelText, meta: { provider: 'gemini', source: 'model' } });
+    for (const p of sc.modelTurn.parts) {
+      if (typeof p.text === 'string' && p.text.length) {
+        out.push({ type: 'model.delta', text: p.text, meta: { provider: 'gemini', source: 'model' } });
+      }
+    }
   }
 
   // Turn boundaries / interruptions
   if (sc && sc.turnComplete) {
     out.push({ type: 'transcript.done', meta: { provider: 'gemini' } });
+    out.push({ type: 'model.done', meta: { provider: 'gemini', source: 'model' } });
   }
   if (sc && typeof sc.interrupted === 'boolean') {
     out.push({ type: 'interrupted', interrupted: sc.interrupted });

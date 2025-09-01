@@ -1,4 +1,7 @@
-// Realtime transcription test via LLM Gateway (OpenAI provider behind gateway)
+// Realtime transcription + model opinion (Gemini via Gateway)
+// Note: Only Gemini models support additional commentary alongside transcription.
+// OpenAI transcription path does not emit model commentary.
+
 import WebSocket from 'ws';
 import * as fs from 'node:fs';
 import pkg from 'wavefile';
@@ -7,21 +10,22 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: '.env' });
 
-// Defaults tuned for OpenAI transcription path
+// Configurable via env; sane defaults for local dev
 const GATEWAY_WS_URL = process.env.GATEWAY_WS_URL || 'ws://localhost:8080/v1/realtime/transcription';
-const AUDIO_FILE = process.env.AUDIO_FILE || 'tests/audio-files/24KHz/11s.wav';
-const MODEL = process.env.MODEL || 'gpt-4o-mini-transcribe';
-// Manual VAD by default (matches recent Gemini fixes); alternative: 'server_vad'
+const AUDIO_FILE = process.env.AUDIO_FILE || 'tests/audio-files/16KHz/11s.wav';
+const MODEL = process.env.MODEL || 'gemini-2.0-flash-live-001';
+// VAD: 'manual' (client markers + commit) or 'server_vad' (upstream activity detection)
 const VAD_TYPE = process.env.VAD_TYPE || 'manual';
-// Optional VAD tuning (used when VAD_TYPE === 'server_vad')
 const VAD_SILENCE_MS = Number(process.env.VAD_SILENCE_MS || '500') || undefined;
-const VAD_PREFIX_MS = Number(process.env.VAD_PREFIX_MS || '300') || undefined;
-// OpenAI path prefers 24kHz PCM16
-const TARGET_SAMPLE_RATE = Number(process.env.TARGET_SAMPLE_RATE || '24000') || 24000;
-// Auto-VAD tail handling (only when VAD_TYPE !== 'manual')
+const VAD_PREFIX_MS = Number(process.env.VAD_PREFIX_MS || '') || undefined;
+const VAD_START_SENS = process.env.VAD_START_SENS || undefined; // HIGH|MEDIUM|LOW
+const VAD_END_SENS = process.env.VAD_END_SENS || undefined;   // HIGH|MEDIUM|LOW
+// Auto-VAD tail helpers
 const AUTO_VAD_APPEND_SILENCE_MS = Number(process.env.AUTO_VAD_APPEND_SILENCE_MS || '1200');
 const AUTO_VAD_POST_WAIT_MS = Number(process.env.AUTO_VAD_POST_WAIT_MS || '1500');
 const AUTO_VAD_COMMIT_FALLBACK = (process.env.AUTO_VAD_COMMIT_FALLBACK || '0') === '1';
+
+// Model commentary is delivered via normalized events (model.delta/model.done)
 
 function sendJSON(ws, obj) {
   return new Promise((resolve, reject) => {
@@ -42,24 +46,20 @@ function chunkBuffer(buf, chunkBytes) {
   return chunks;
 }
 
-async function toPcm16MonoBase64Chunks(filePath, targetHz = 24000, chunkMs = 200) {
+async function toPcm16MonoBase64Chunks(filePath, targetHz = 16000, chunkMs = 200) {
   const fileBuffer = fs.readFileSync(filePath);
   const wav = new WaveFile();
   wav.fromBuffer(fileBuffer);
-
-  // Resample and format: 16-bit, mono, target sample rate
+  // Normalize: 16-bit, mono, 16kHz
   wav.toSampleRate(targetHz);
   wav.toBitDepth('16');
-  // If multi-channel, WaveFile#getSamples(true, Int16Array) returns interleaved; for test inputs we assume mono, else take first channel by stride copy
   const samples = wav.getSamples(true, Int16Array);
   const pcmBuffer = Buffer.from(samples.buffer, samples.byteOffset, samples.byteLength);
-
   const bytesPerSecond = targetHz * 2; // 16-bit mono
-  const chunkBytes = Math.max((bytesPerSecond * chunkMs) / 1000, 1) | 0;
-
+  const chunkBytes = Math.max(bytesPerSecond * (chunkMs / 1000), 1) | 0;
   const chunks = chunkBuffer(pcmBuffer, chunkBytes).map((c) => c.toString('base64'));
   const seconds = pcmBuffer.length / bytesPerSecond;
-  return { chunks, seconds, mimeType: `audio/pcm;rate=${targetHz}` };
+  return { chunks, seconds };
 }
 
 async function main() {
@@ -68,57 +68,53 @@ async function main() {
 
   let fullTranscript = '';
   let gotTranscriptDone = false;
+  const modelSegments = [];
 
   ws.on('open', async () => {
     try {
       console.log('✅ WS connected');
 
-      // Configure session for strict transcription
+      // Configure session for Gemini transcription + mirror upstream for model commentary
       const sessionUpdate = {
         type: 'session.update',
         data: {
           model: MODEL,
-          // Use 'prompt' to align with gateway mapping; ensures transcription-only behavior
-          prompt:
-            'What do you think about the speaker\'s opinion?',
-          // VAD selection (manual by default)
-          vad:
-            VAD_TYPE === 'server_vad'
-              ? {
-                  type: 'server_vad',
-                  ...(VAD_SILENCE_MS ? { silence_duration_ms: VAD_SILENCE_MS } : {}),
-                  ...(VAD_PREFIX_MS ? { prefix_padding_ms: VAD_PREFIX_MS } : {}),
-                }
-              : { type: 'manual' },
-          // Optional language hint
-          language: process.env.LANGUAGE || 'en',
+          // Strict guidance so model commentary reflects the speech
+          system_instruction: 'explain the technical terms used by speaker',
+          input_audio_transcription: {},
+          response_modalities: ['TEXT'],
+          // Enable normalized model commentary events from the gateway
+          // Set include.model_output=true to receive model-origin deltas alongside transcript
+          include: { model_output: true },
+          vad: VAD_TYPE === 'server_vad'
+            ? {
+                type: 'server_vad',
+                ...(VAD_SILENCE_MS ? { silence_duration_ms: VAD_SILENCE_MS } : {}),
+                ...(VAD_PREFIX_MS ? { prefix_padding_ms: VAD_PREFIX_MS } : {}),
+                ...(VAD_START_SENS ? { start_sensitivity: VAD_START_SENS } : {}),
+                ...(VAD_END_SENS ? { end_sensitivity: VAD_END_SENS } : {}),
+              }
+            : { type: 'manual' },
         },
       };
 
       await sendJSON(ws, sessionUpdate);
       console.log('⚙️  Sent session.update');
 
-      // Prepare audio into PCM16 chunks sized ~200ms each
+      // Prepare audio chunks
       console.log(`🎤 Loading audio: ${AUDIO_FILE}`);
-      const { chunks, seconds } = await toPcm16MonoBase64Chunks(
-        AUDIO_FILE,
-        TARGET_SAMPLE_RATE,
-        200
-      );
+      const { chunks, seconds } = await toPcm16MonoBase64Chunks(AUDIO_FILE, 16000, 200);
       console.log(`ℹ️  Audio duration ≈ ${seconds.toFixed(2)}s, chunks: ${chunks.length}`);
 
-      // Manual VAD: explicit activity markers around audio
       if (VAD_TYPE === 'manual') {
         await sendJSON(ws, { type: 'input_audio.activity_start' });
       }
 
-      // Stream audio chunks with gentle backpressure awareness
       for (let i = 0; i < chunks.length; i++) {
         await sendJSON(ws, { type: 'input_audio.append', audio: chunks[i] });
+        // Simple pacing/backpressure care
         if (ws.bufferedAmount > 256 * 1024) {
-          while (ws.bufferedAmount > 64 * 1024) {
-            await sleep(10);
-          }
+          while (ws.bufferedAmount > 64 * 1024) await sleep(10);
         }
       }
 
@@ -127,8 +123,8 @@ async function main() {
         await sendJSON(ws, { type: 'input_audio.commit' });
         console.log('🧾 Sent input_audio.commit (manual VAD)');
       } else {
-        // Server VAD: help with a bit of trailing silence and wait for end-of-speech
-        const sr = TARGET_SAMPLE_RATE;
+        // Auto VAD helpers
+        const sr = 16000;
         const ms = Math.max(0, AUTO_VAD_APPEND_SILENCE_MS | 0);
         if (ms > 0) {
           const bytes = (sr * 2 * ms) / 1000; // mono, 16-bit
@@ -142,7 +138,7 @@ async function main() {
         }
       }
 
-      // Safety timeout in case no transcript arrives
+      // Safety timeout
       setTimeout(() => {
         if (!gotTranscriptDone) {
           console.warn('⏱️  Timeout waiting for transcript; closing socket.');
@@ -172,22 +168,12 @@ async function main() {
       case 'session.updated':
         console.log('📣 session.updated');
         break;
-      case 'rate_limits.updated':
-        // Show APM window usage
-        console.log('📉 rate_limits.updated:', evt.minute || evt.data || evt);
-        break;
       case 'warning':
-        console.warn('⚠️  warning:', evt.reason || evt.code || evt.message || evt);
+        console.warn('⚠️  warning:', evt.data || evt.message || evt);
         break;
       case 'error':
-        console.error('💥 error:', evt.code || evt.message || evt);
+        console.error('💥 error:', evt.data || evt.message || evt);
         break;
-      case 'debug.upstream': {
-        if (process.env.DEBUG_UPSTREAM === '1') {
-          console.log('🐞 debug.upstream (truncated):', JSON.stringify(evt).slice(0, 500));
-        }
-        break;
-      }
       case 'transcript.delta': {
         const delta = evt.data?.text ?? evt.text ?? '';
         if (delta) {
@@ -196,22 +182,35 @@ async function main() {
         }
         break;
       }
+      case 'model.delta': {
+        const text = evt.data?.text ?? evt.text ?? '';
+        if (typeof text === 'string' && text.length) modelSegments.push(text);
+        break;
+      }
+  // (No debug.upstream handling; example relies on normalized model events only)
       case 'transcript.done': {
         const text = evt.data?.text ?? evt.text ?? '';
-        // If we didn't receive streaming deltas, fall back to final text
-        if (!fullTranscript && text) {
-          fullTranscript = text;
-        }
+        if (text) fullTranscript += text;
         gotTranscriptDone = true;
         console.log('\n✅ transcript.done');
-  console.log('\n--- Transcription Result ---');
-  console.log(fullTranscript.trim() || '(empty)');
-  console.log('--- End Transcription ---\n');
-  try { ws.close(1000, 'client_end'); } catch {}
+        console.log('\n--- Transcription Result ---');
+        console.log(fullTranscript.trim() || '(empty)');
+        if (modelSegments.length) {
+          console.log('\n--- Model Response (Gemini) ---');
+          modelSegments.forEach((seg, idx) => console.log(`Model Segment ${idx + 1}: "${seg}"`));
+          console.log(`\n💬 Model Opinion: "${modelSegments.join('').trim()}"`);
+        } else {
+          console.log('\n(No model commentary captured; ensure include.model_output=true and a Gemini model is used)');
+          console.log('Note: OpenAI transcription does not include commentary.');
+        }
+        console.log('--- End Transcription ---\n');
+        setTimeout(() => ws.close(), 250);
         break;
       }
       default:
-        console.log('📨 event:', t, JSON.stringify(evt));
+        // Useful for observing other events (rate_limits.updated, etc.)
+        // console.log('📨 event:', t, JSON.stringify(evt));
+        break;
     }
   });
 

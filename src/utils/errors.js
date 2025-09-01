@@ -138,6 +138,16 @@ class ProviderError extends GatewayError {
 }
 
 /**
+ * Network error for transport-level failures
+ */
+class NetworkError extends ProviderError {
+  constructor(message = 'Network error', errorCode = 'NETWORK_ERROR', provider = 'unknown', details = {}) {
+    super(provider, message, null, 502, { ...details });
+    this.errorCode = errorCode;
+  }
+}
+
+/**
  * Provider timeout error
  */
 class ProviderTimeoutError extends ProviderError {
@@ -400,6 +410,7 @@ module.exports = {
   ProviderTimeoutError,
   ProviderRateLimitError,
   ProviderAuthError,
+  NetworkError,
   ModelNotFoundError,
   CacheError,
   ServiceUnavailableError,

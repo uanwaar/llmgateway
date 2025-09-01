@@ -72,6 +72,7 @@ async function main() {
 
   let fullTranscript = '';
   let gotTranscriptDone = false;
+  const modelSegments = []; // capture model response from debug.upstream
 
   ws.on('open', async () => {
     try {
@@ -84,7 +85,7 @@ async function main() {
           model: MODEL,
           // Strict instruction (optional when suppressing model output)
           system_instruction:
-            'You are a transcription assistant. Only transcribe the user audio verbatim. Do not add any commentary or responses.',
+            'Explain what speaker is saying in detail.',
           // Enable input transcription at provider
           input_audio_transcription: {},
           response_modalities: ['TEXT'],
@@ -204,6 +205,25 @@ async function main() {
         }
         break;
       }
+      case 'debug.upstream': {
+        // When enabled, mirror of upstream provider event
+        try {
+          const raw = evt.raw || {};
+          const sc = raw.serverContent || raw.realtimeServerContent || raw;
+          const parts = sc?.modelTurn?.parts;
+          if (Array.isArray(parts)) {
+            for (const p of parts) {
+              if (typeof p.text === 'string' && p.text.length) {
+                modelSegments.push(p.text);
+              }
+            }
+          }
+          if (typeof sc?.text === 'string' && sc.text.length) {
+            modelSegments.push(sc.text);
+          }
+        } catch (_) { /* ignore */ }
+        break;
+      }
       case 'transcript.done': {
         const text = evt.data?.text ?? evt.text ?? '';
         if (text) fullTranscript += text;
@@ -211,9 +231,13 @@ async function main() {
         console.log('\n✅ transcript.done');
         console.log('\n--- Transcription Result ---');
         console.log(fullTranscript.trim() || '(empty)');
-        console.log('--- End Transcription ---\n');
-        // Close shortly after done
-        setTimeout(() => ws.close(), 250);
+        if (modelSegments.length) {
+          console.log('\n--- Model Response ---');
+          modelSegments.forEach((seg, idx) => console.log(`Model Segment ${idx + 1}: "${seg}"`));
+          console.log(`\n💬 Model Opinion: "${modelSegments.join('').trim()}"`);
+        }
+  console.log('--- End Transcription ---\n');
+  try { ws.close(1000, 'client_end'); } catch {}
         break;
       }
       default:

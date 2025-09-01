@@ -3,7 +3,8 @@
 This document describes how external clients connect to and use the Gateway’s realtime transcription WebSocket endpoint to stream audio and receive live transcripts.
 
 - Endpoint: ws(s)://<host>/v1/realtime/transcription
-- Mode: Strict speech‑to‑text; the Gateway filters model commentary and only emits transcript events.
+- Default mode: Strict speech‑to‑text; the Gateway suppresses model commentary and only emits transcript events.
+- Optional (Gemini only): Opt in to model commentary alongside transcription by setting `include.model_output: true` in `session.update`.
 - Providers: OpenAI Realtime (intent=transcription) and Gemini Live are handled internally; the client speaks a single, unified protocol.
 
 
@@ -41,7 +42,9 @@ Request
   "data": {
     "model": "gpt-4o-mini-transcribe",        // Required for reliable routing (unless passed via query)
     "language": "en",                          // Optional
-    "prompt": "Only transcribe user audio.",   // Optional 
+  "prompt": "Only transcribe user audio.",   // Optional 
+  // Gemini instruction aliases are also accepted:
+  // systemInstruction | system_instruction | systemInstructions | system_instructions
     "vad": {                                    // Optional; choose one mode
       "type": "manual"                         // Manual VAD: client sends markers + commit
       // or
@@ -51,7 +54,10 @@ Request
       // "start_sensitivity": "HIGH|MEDIUM|LOW", // Gemini only
       // "end_sensitivity": "HIGH|MEDIUM|LOW"    // Gemini only
     },
-    "include": { "raw_upstream": false }       // Optional debug mirror of provider events
+    "include": {
+      "raw_upstream": false,                    // Optional debug mirror of provider events
+      "model_output": false                     // Gemini only: emit model.delta/model.done alongside transcript
+    }
   }
 }
 
@@ -61,6 +67,7 @@ Response
 
 Notes
 - Gemini‑style setup messages are accepted and normalized automatically (see Compatibility below).
+ - In transcription mode, model commentary is suppressed unless `include.model_output=true` (Gemini only). OpenAI does not emit commentary in this mode.
 
 
 ## 4) Stream audio
@@ -97,6 +104,10 @@ Canonical transcript shapes (always prefer the text field)
 - transcript.delta: { "type": "transcript.delta", "text": "partial text" }
 - transcript.done:  { "type": "transcript.done",  "text": "final text" }
 
+Model commentary (Gemini only; when include.model_output=true)
+- model.delta: { "type": "model.delta", "text": "…" }
+- model.done:  { "type": "model.done" }
+
 Other events
 - session.created | session.updated
 - rate_limits.updated: { "type": "rate_limits.updated", "minute": { "used_ms", "limit_ms", "reset_ms" } }
@@ -107,8 +118,8 @@ Other events
 - error: { "type": "error", "code": string, "message"?: string, "provider"?: "openai"|"gemini", "details"?: object }
 - debug.upstream (optional): Mirror of provider events when enabled via include.raw_upstream or env on the server.
 
-Auto‑close
-- In strict transcription mode, the server closes the WebSocket ~150 ms after transcript.done.
+Connection lifetime
+- The server does not auto‑close after transcript.done. Close the WebSocket client‑side when finished, or keep it open for additional turns. Idle timeout still applies.
 
 
 ## 6) Limits and backpressure
@@ -167,7 +178,7 @@ Shell (WebSocket)
 - Chunk small (20–50 ms for fastest Gemini latency; 50–200 ms works well across providers). Keep well below the ~32 KB limit.
 - Sample rate: OpenAI 24 kHz; Gemini 16 kHz. Resample client‑side when needed; send mono PCM16.
 - Pace sends using bufferedAmount or short delays; heed backpressure warnings.
-- Provide language hints if known; keep sessions short (socket auto‑closes after transcript.done).
+- Provide language hints if known; keep sessions short and close the socket client‑side after transcript.done unless you intend to reuse it.
 
 
 ---

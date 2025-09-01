@@ -1,11 +1,22 @@
 const { logger } = require('../../utils/logger');
 const { ProviderError } = require('../../utils/errors');
+const config = require('../../config');
 
 class ProviderRegistry {
   constructor() {
     this.providers = new Map();
     this.healthCheckInterval = null;
-    this.healthCheckIntervalMs = 30000; // 30 seconds
+    // Configure health check interval with precedence: ENV -> config.routing.healthCheckInterval -> default 30s
+    const envInterval = process.env.HEALTH_CHECK_INTERVAL_MS
+      ? parseInt(process.env.HEALTH_CHECK_INTERVAL_MS, 10)
+      : null;
+    const configInterval = config?.routing?.healthCheckInterval;
+    const resolvedInterval = Number.isInteger(envInterval) && envInterval > 0
+      ? envInterval
+      : (typeof configInterval === 'number' && configInterval > 0
+        ? configInterval
+        : 30000);
+    this.healthCheckIntervalMs = resolvedInterval; // ms
     this.healthStatusCallback = null; // Callback to notify gateway service
   }
 
@@ -367,7 +378,7 @@ class ProviderRegistry {
       return; // Already running
     }
 
-    logger.info('Starting provider health check monitoring');
+  logger.info('Starting provider health check monitoring', { interval_ms: this.healthCheckIntervalMs });
     
     this.healthCheckInterval = setInterval(async () => {
       await this.performHealthChecks();

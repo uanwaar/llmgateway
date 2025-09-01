@@ -186,12 +186,19 @@ class RealtimeService {
         }
 
         // Store desired config; defer upstream connection until audio arrives
+        // Normalize instruction fields across naming styles
+        const systemInstruction =
+          payload.systemInstruction ??
+          payload.system_instruction ??
+          payload.systemInstructions ??
+          payload.system_instructions;
+
         session.upstream.config = {
           language: payload.language,
           vad: payload.vad,
           include: payload.include,
-          // Accept either prompt or systemInstruction naming
-          prompt: payload.prompt || payload.systemInstruction,
+          // Accept either prompt (OpenAI-style) or systemInstruction (Gemini-style) naming
+          prompt: payload.prompt ?? systemInstruction,
           // In transcription mode, ensure guidance suppresses commentary
           transcription_only: session.mode === 'transcription',
         };
@@ -361,8 +368,9 @@ class RealtimeService {
   const unified = normalize(provider, evt);
       if (!unified || unified.length === 0) return;
       for (const u of unified) {
-        // In transcription mode, suppress any model output commentary events
-        if (session.mode === 'transcription' && u.meta && u.meta.source === 'model') {
+        // In transcription mode, suppress model commentary unless explicitly enabled
+        const allowModelOutput = !!(session.upstream?.config?.include && session.upstream.config.include.model_output === true);
+        if (session.mode === 'transcription' && u.meta && u.meta.source === 'model' && !allowModelOutput) {
           continue;
         }
         // Latency: first transcript.delta after commit
@@ -377,11 +385,24 @@ class RealtimeService {
         }
         this._safeSend(ws, u);
 
-        // Auto-close quickly after transcript is done in transcription mode
-        if (session.mode === 'transcription' && u.type === 'transcript.done') {
-          try { setTimeout(() => { try { ws.close(); } catch (_) {} this.closeSession(session.id); }, 150); } catch (_) {}
-        }
+  // Note: Previously the gateway auto-closed ~150ms after transcript.done in
+  // transcription mode. That behavior has been removed to give clients
+  // full control over connection lifetime. The connection now remains
+  // open until the client closes it or the idle timeout triggers.
       }
+    });
+
+    // Ensure we react to upstream close/error so the session doesn’t hang
+    adapter.onClose?.(() => {
+      try {
+        session.upstream.connected = false;
+        this._safeSend(ws, { type: 'warning', code: 'upstream_closed', provider });
+      } catch (_) {}
+    });
+    adapter.onError?.((err) => {
+      try {
+        this._sendError(ws, 'provider_error', err?.message || 'upstream error');
+      } catch (_) {}
     });
   }
 

@@ -37,7 +37,6 @@ class GeminiRealtimeAdapter {
       model: this.model,
       config: {
         responseModalities: ['TEXT'],
-        maxOutputTokens: 1,
         systemInstruction,
         inputAudioTranscription: {},
         realtimeInputConfig: mapGeminiRealtimeInputConfig(vad),
@@ -62,6 +61,8 @@ class GeminiRealtimeAdapter {
         },
         onclose: (e) => {
           logger.info('Gemini live closed', { reason: e?.reason });
+          // Reflect disconnected state so callers can detect and retry
+          this.session = null;
           if (this._onClose) try { this._onClose(e); } catch (_) {}
         },
       },
@@ -82,9 +83,9 @@ class GeminiRealtimeAdapter {
       sendFn();
       return true;
     }
-    // Enqueue for later - this is not backpressure, it's normal connection delay
+    // Enqueue for later and report not-sent so caller can handle backpressure/queueing
     this._enqueueOutbound(sendFn);
-    return true;
+    return false;
   }
 
   // For manual VAD, represent commit as turnComplete using client content with empty turns
@@ -99,24 +100,24 @@ class GeminiRealtimeAdapter {
         }
       } catch (_) { /* ignore */ }
     };
-    if (this.isConnected()) { sendFn(); return true; }
-    this._enqueueOutbound(sendFn);
-    return true;
+  if (this.isConnected()) { sendFn(); return true; }
+  this._enqueueOutbound(sendFn);
+  return false;
   }
 
   // Explicit client-controlled markers
   activityStart() {
     const sendFn = () => { try { this.session?.sendRealtimeInput({ activityStart: {} }); } catch (_) { /* ignore */ } };
-    if (this.isConnected()) { sendFn(); return true; }
-    this._enqueueOutbound(sendFn);
-    return true;
+  if (this.isConnected()) { sendFn(); return true; }
+  this._enqueueOutbound(sendFn);
+  return false;
   }
 
   activityEnd() {
     const sendFn = () => { try { this.session?.sendRealtimeInput({ activityEnd: {} }); } catch (_) { /* ignore */ } };
-    if (this.isConnected()) { sendFn(); return true; }
-    this._enqueueOutbound(sendFn);
-    return true;
+  if (this.isConnected()) { sendFn(); return true; }
+  this._enqueueOutbound(sendFn);
+  return false;
   }
 
   onMessage(cb) {
@@ -130,7 +131,8 @@ class GeminiRealtimeAdapter {
   isConnected() { return !!this.session; }
 
   close() {
-    try { this.session?.close(); } catch (_) {}
+  try { this.session?.close(); } catch (_) {}
+  this.session = null;
   }
 
   _pushInbound(msg) {

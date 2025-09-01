@@ -232,8 +232,8 @@ providers:
 
 routing:
   strategy: "cost_optimized"  # round_robin, performance, cost_optimized, health_based
-  failoverEnabled: true
-  healthCheckInterval: 30000
+  failoverEnabled: false
+  healthCheckInterval: 900000 # 15 minutes
   circuitBreakerThreshold: 5
   circuitBreakerTimeout: 60000
 
@@ -368,7 +368,7 @@ realtime:
   security:
     allow_client_ephemeral_tokens: true
     max_session_minutes: 15
-    max_idle_seconds: 60
+    max_idle_seconds: 3600
   limits:
     max_sessions_per_api_key: 5
     max_concurrent_sessions: 100

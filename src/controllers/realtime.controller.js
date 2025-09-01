@@ -12,7 +12,8 @@ const config = require('../config');
 const realtimeService = require('../services/realtime.service');
 
 // Create a shared WebSocketServer in noServer mode
-const wss = new WebSocketServer({ noServer: true });
+// Disable perMessageDeflate (CPU heavy with many base64 JSON frames) and cap payload size
+const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false, maxPayload: 2 * 1024 * 1024 });
 
 // Handle WS connection after upgrade
 wss.on('connection', async (ws, request) => {

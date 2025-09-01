@@ -25,7 +25,7 @@ How to use
 	- Per-second artificial throttling removed (was causing idle timeouts with chunked audio streaming).
  - Audio format (by provider): Gemini expects 16-bit PCM, 16kHz, mono, little-endian (`audio/pcm;rate=16000`); OpenAI realtime path configured at 24kHz (`audio/pcm;rate=24000`). Gateway accepts base64-encoded PCM in JSON events.
  - Protocol: Clients may send either gateway-native events (`input_audio.append`/`commit`) or Gemini-style shapes (`setup`, `realtimeInput.audio`, `clientContent.turnComplete`); the service normalizes both.
- - Transcription mode: Requests to `/v1/realtime/transcription` run in a strict transcription mode (no model commentary) and auto-close the WS shortly after `transcript.done`.
+ - Transcription mode: Requests to `/v1/realtime/transcription` run in a strict transcription mode (no model commentary). The WS remains open after `transcript.done`; clients control when to close.
 
 ## Milestones
 - [x] M1: WS endpoint returns session.created (T03) — Phase 1 complete
@@ -42,7 +42,7 @@ How to use
 	- Constraints: `realtime.audio.max_chunk_bytes=32768` (≈1.0s at 16kHz PCM16), `max_buffer_ms=5000`, `chunk_target_ms=50`; APM limit `apm_audio_seconds_per_min=180`. Emits `rate_limits.updated` with `{ minute: { used_ms, limit_ms, reset_ms } }`.
 	- VAD: Manual VAD is now client-owned. Clients must send `input_audio.activity_start` and `input_audio.activity_end` (or Gemini-style `realtimeInput.activityStart/End`, which the gateway normalizes). The gateway no longer injects markers. `input_audio.commit` still delimits the turn. Server VAD mapping remains for both providers.
 	- Commentary suppression: In transcription mode, normalized events are tagged with `meta.source` and model-sourced text is filtered out; only input transcription reaches clients. System instructions via `session.update` (`prompt`/`systemInstruction`) are still honored.
-	- Fast close: In transcription mode the gateway closes the WS ~150ms after `transcript.done`, matching the reference Gemini script behavior.
+	- Fast close: Removed. The gateway no longer auto-closes after `transcript.done`; clients should close explicitly or rely on idle timeout.
 	- Stability: Upstream connection de-dup added to prevent parallel connects; optional upstream debug mirroring available via `session.update.include.raw_upstream=true` or env `REALTIME_DEBUG_UPSTREAM=1` (events emitted as `debug.upstream`).
 	- maxOutputTokens: 1 in Gemini Adapter to minimise model response that cannot be suppressed in manual vad.
 

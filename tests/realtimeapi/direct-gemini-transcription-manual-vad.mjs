@@ -16,9 +16,8 @@ const model = 'gemini-2.0-flash-live-001';
 const config = {
   responseModalities: [Modality.TEXT],
   systemInstruction:
-    'You are a transcription assistant. Only transcribe the audio no output.',
+    'Explain what speaker is saying in detail.',
   inputAudioTranscription: {}, // Enable input audio transcription
-  maxOutputTokens: 1, // minimise model output
   // MANUAL VAD: disable automatic activity detection
   realtimeInputConfig: {
     automaticActivityDetection: { disabled: true },
@@ -164,6 +163,29 @@ async function transcribeAudioManualVAD() {
         console.log(`Turn ${index + 1}: [unserializable]`);
       }
     });
+  }
+
+  // --- Collect and print model response ---
+  console.log('\n--- Model Response ---');
+  const modelSegments = [];
+  turns.forEach((turn) => {
+    const parts = turn.serverContent?.modelTurn?.parts;
+    if (Array.isArray(parts)) {
+      for (const p of parts) {
+        if (typeof p.text === 'string' && p.text.length) {
+          modelSegments.push(p.text);
+        }
+      }
+    }
+  });
+
+  if (modelSegments.length) {
+    modelSegments.forEach((seg, idx) => {
+      console.log(`Model Segment ${idx + 1}: "${seg}"`);
+    });
+    console.log(`\n💬 Model Opinion: "${modelSegments.join('').trim()}"`);
+  } else {
+    console.log('⚠️  No model response found');
   }
   console.log('--- End Transcription ---\n');
 

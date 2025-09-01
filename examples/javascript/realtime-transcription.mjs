@@ -79,7 +79,7 @@ async function main() {
   let full = '';
   let gotTranscriptDone = false;
   let safetyTimer = null;
-  let serverCloseFallbackTimer = null;
+  // No server auto-close: client is responsible for closing when done
 
   ws.on('open', async () => {
     try {
@@ -88,7 +88,7 @@ async function main() {
         type: 'session.update',
         data: {
           model: MODEL, // mandatory for reliable provider selection
-          prompt: 'Only transcribe the user audio. Do not add commentary.', // optional 
+          prompt: '', // optional 
           language: LANGUAGE, // optional
           vad: VAD_TYPE === 'server_vad' ? { type: 'server_vad', silence_duration_ms: 500, prefix_padding_ms: 300 } : { type: 'manual' },
         },
@@ -152,9 +152,9 @@ async function main() {
         if (!full && text) full = text;
         gotTranscriptDone = true;
         if (safetyTimer) { try { clearTimeout(safetyTimer); } catch {} safetyTimer = null; }
-        console.log('\nFinal:', (full || '').trim());
-        // Rely on server to close shortly after transcript.done; set a fallback in case it doesn't
-        serverCloseFallbackTimer = setTimeout(() => { try { ws.close(); } catch {} }, 1500);
+  console.log('\nFinal:', (full || '').trim());
+  // Close proactively after final transcript
+  try { ws.close(1000, 'client_end'); } catch {}
         break; }
       case 'warning':
       case 'rate_limits.updated':
@@ -166,7 +166,6 @@ async function main() {
 
   ws.on('close', (c, r) => {
     if (safetyTimer) { try { clearTimeout(safetyTimer); } catch {} safetyTimer = null; }
-    if (serverCloseFallbackTimer) { try { clearTimeout(serverCloseFallbackTimer); } catch {} serverCloseFallbackTimer = null; }
     console.log('Closed', c, r?.toString?.() || '');
   });
   ws.on('error', (e) => console.error('WS error:', e.message));

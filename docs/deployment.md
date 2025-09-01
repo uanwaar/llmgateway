@@ -52,6 +52,7 @@ NODE_ENV=production
 
 # Provider API Keys (Optional - can be client-provided)
 OPENAI_API_KEY=sk-your-openai-key
+- `HEALTH_CHECK_INTERVAL_MS`: Override provider health check interval in milliseconds (default 30000)
 GEMINI_API_KEY=your-gemini-key
 
 # Feature Flags

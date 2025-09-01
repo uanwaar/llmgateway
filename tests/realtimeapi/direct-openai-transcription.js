@@ -108,7 +108,7 @@ class OpenAITranscriptionTester {
                         input_audio_transcription: {
                             model: model,
                             language: 'en',
-                            prompt: 'You are a transcription assistant. Only transcribe the audio you receive without any additional commentary.'
+                            prompt: 'Give your opinion after transcribing'
                         },
                         turn_detection: {
                             type: 'server_vad',
@@ -336,7 +336,7 @@ class OpenAITranscriptionTester {
 
         // Test different transcription models
         const models = [
-            'whisper-1'
+            'gpt-4o-transcribe'
         ];
 
         // Different configuration scenarios
@@ -358,7 +358,7 @@ class OpenAITranscriptionTester {
                 config: {
                     input_audio_transcription: {
                         language: 'en',
-                        prompt: 'This is a technical discussion about APIs and software development'
+                        prompt: ''
                     }
                 }
             }

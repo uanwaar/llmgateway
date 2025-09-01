@@ -18,7 +18,7 @@ const model = "gemini-2.0-flash-live-001";
 
 const config = {
     responseModalities: [Modality.TEXT],
-    systemInstruction: "You are a transcription assistant. Only transcribe the audio you receive without any additional commentary.",
+    systemInstruction: "What do you think about the speaker\'s opinion?",
     inputAudioTranscription: {}  // Enable input audio transcription
 };
 
